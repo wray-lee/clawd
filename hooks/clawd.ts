@@ -24,15 +24,17 @@ export type Scene = {
 // One row of the band: spaces, Clawd's slice (theme orange), then any z's (dim).
 export type Row = { pad: string; body: string; zzz: string }
 
-export const start = (): Scene => ({ t: 0, x: 2, dir: 1, idle: 0 })
+// Starts at the right edge: frame and step clamp x to the band's width.
+export const start = (): Scene => ({ t: 0, x: Number.MAX_SAFE_INTEGER, dir: -1, idle: 0 })
 
 // One 100ms tick.
 export function step(s: Scene, isWorking: boolean, columns: number): Scene {
   const t = s.t + 1
-  if (!isWorking) return { ...s, t, idle: s.idle + 1 }
-  let { x, dir } = s
+  const max = Math.max(0, columns - W)
+  if (!isWorking) return { ...s, t, x: Math.min(s.x, max), idle: s.idle + 1 }
+  let { dir } = s
+  let x = Math.min(s.x, max)
   if (t % 2 === 0) {
-    const max = Math.max(0, columns - W)
     if (x + dir < 0 || x + dir > max) dir = dir === 1 ? -1 : 1
     x = Math.min(max, Math.max(0, x + dir))
   }
@@ -40,7 +42,9 @@ export function step(s: Scene, isWorking: boolean, columns: number): Scene {
 }
 
 export function frame(s: Scene, isWorking: boolean, columns: number): Row[] {
-  const x = Math.min(s.x, Math.max(0, columns - W))
+  const isAsleep = !isWorking && s.idle >= SLEEP_AFTER
+  // Asleep, Clawd steps left so the z's fit inside the band.
+  const x = Math.min(s.x, Math.max(0, columns - W - (isAsleep ? 4 : 0)))
   const blink = s.t % 37 < 2 // a short blink every ~3.7s
   const sprite = [BLANK, BLANK, BLANK, BLANK]
   const zzz = ['', '', '', '']
@@ -48,7 +52,7 @@ export function frame(s: Scene, isWorking: boolean, columns: number): Row[] {
   if (isWorking) {
     const stride = Math.floor(s.t / 2) % 2 === 0
     sprite.splice(1, 3, blink ? HEAD_BLINK : HEAD, stride ? ARMS_UP : ARMS_DOWN, stride ? LEGS_A : LEGS_B)
-  } else if (s.idle >= SLEEP_AFTER) {
+  } else if (isAsleep) {
     sprite.splice(1, 3, HEAD_BLINK, ARMS_DOWN, LEGS_A)
     // z's drift up and to the right of the head, one after another.
     const phase = Math.floor(s.t / 6) % 4

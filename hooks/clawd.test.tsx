@@ -18,6 +18,11 @@ const BAND = {
 
 const glyphs = (rows: ReturnType<typeof frame>) => rows.map(r => r.pad + r.body + r.zzz)
 
+test('Clawd starts at the right edge', async () => {
+  const rows = frame(start(), false, 40)
+  expect(rows[1]!.pad.length).toBe(40 - 9)
+})
+
 test('working walks and turns at the edge', async () => {
   let s = start()
   for (let i = 0; i < 200; i++) {
