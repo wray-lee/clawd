@@ -20,9 +20,11 @@ English | [简体中文](README.zh-CN.md) | [日本語](README.ja.md)
 ## Features
 
 - **Acts out the work.** Clawd walks while Claude thinks, types at a shell
-  command, scans with its eyes while reading, holds up a magnifying glass to
-  search, hammers while editing, casts a spell for a skill, and raises an
-  antenna for an MCP call.
+  command, holds up the pages it reads, holds up a magnifying glass to
+  search, watches a download bar fill for a web page, hammers while editing,
+  casts a spell for a skill, raises an antenna for an MCP call, ticks boxes
+  for the task list, draws a blueprint in plan mode, and gets squeezed while
+  the conversation compacts.
 - **A helper per subagent.** Each running subagent, workflow agents included,
   gets a small Clawd in its own color. A subagent's own subagents are smaller
   still. A workflow's agents wear a purple top hat. Each helper leaves when
@@ -30,8 +32,9 @@ English | [简体中文](README.zh-CN.md) | [日本語](README.ja.md)
 - **Reacts to you.** Clawd types along with you in the prompt and holds up the
   last key. Click it and it reacts to what it is doing. A click never selects
   Clawd's text, so it is never highlighted or copied.
-- **Moods.** Clawd celebrates a finished turn, startles when a tool fails, and
-  naps after two quiet minutes.
+- **Moods.** Clawd says hi when a session starts, celebrates a finished turn,
+  shrugs when you interrupt, looks sad at an error, startles when a tool
+  fails, fidgets while it waits, and naps after ten quiet minutes.
 - **Colorful.** Clawd keeps the welcome screen's own theme orange. Helpers
   come in 12 colors, and confetti, sparkles, `z`'s, signals and smoke each have their
   own. Every glyph is one column wide, so CJK terminals stay aligned.
@@ -55,27 +58,37 @@ Restart Claude Code to load it. `/clawd` hides or shows the band.
 
 ## What Clawd does
 
-<img src="docs/assets/actions.gif" alt="Clawd plays each of its actions in turn: walking, typing, reading, searching, editing, casting a spell, MCP waves, typing along, celebrating, oops and napping" width="560">
+<img src="docs/assets/actions.gif" alt="A grid of all of Clawd's actions, each playing at once" width="100%">
 
 | When | Clawd |
 | --- | --- |
 | Claude is thinking | walks back and forth |
 | a shell command runs | types, `>_` above |
-| Claude reads a file or a page | eyes scan, `...` above |
+| Claude reads a file | holds the open pages beside it, turning one now and then |
+| Claude fetches a web page | a download bar `[==...]` fills above its head |
 | Claude searches (Grep, Glob, web search) | holds a magnifying glass out to each side, `?` |
 | Claude edits files | hammers, sparks fly |
 | Claude uses a skill | arms up, two comets of sparks circle its head |
 | Claude calls an MCP tool | an antenna on its head sends out `( ( \| ) )` |
+| Claude writes the task list | ticks `[x]` boxes above its head |
+| Claude enters or leaves plan mode | holds up a teal blueprint and draws a route on it |
+| the conversation compacts | `>>` and `<<` squeeze it until it's done |
+| a session starts | waves with happy eyes, `hi!` |
 | a turn finishes | happy eyes, hops, confetti falls |
 | a tool fails | `!` and a shake |
-| nothing happens | blinks, glances, hops |
-| about 2 minutes pass | sleeps with `z Z`, wakes when you type |
+| you interrupt the turn | shrugs, `-.-` |
+| the turn ends in an error or a refusal | eyes cast down, a tear rolls |
+| nothing happens | blinks, and every 8 seconds plays one of 14 fidgets at random: hops, waves, stretches, looks around, dances, hums, yawns, sneezes, shows a heart `<3`, juggles, crouches and jumps, stargazes, cheers, or nods off and snaps awake |
+| 10 quiet minutes pass | sleeps with `z Z`, wakes when you type |
 | you type in the prompt | types along, holds up your last key |
 
 Each tool's action plays for at least 1.5 seconds, so a quick search or skill
 is seen and not just a flicker.
 
 <img src="docs/assets/actions.png" alt="One frame of each action, labeled" width="100%">
+
+Clawd shows nothing while a dialog (a permission prompt or a question) holds
+the prompt: the engine hides the band then.
 
 ### Helpers for subagents
 
@@ -100,10 +113,10 @@ is seen and not just a flicker.
   purple for the workflow's) with a pixel in each one's color below it.
   Helpers keep clear of Clawd's effects, so a hammer or confetti is never
   covered.
-
-<img src="docs/assets/crowd.png" alt="Eight helper Clawds beside Clawd; under the [-], a +4 column with colored pixels for subagents and a purple +2 column for workflow agents" width="100%">
 - A helper leaves when the engine reports its agent as completed, failed or
   killed. A subagent that is still waiting on background work keeps its helper.
+
+<img src="docs/assets/crowd.png" alt="Eight helper Clawds beside Clawd; under the [-], a +4 column with colored pixels for subagents and a purple +2 column for workflow agents" width="100%">
 
 ### Click Clawd
 
@@ -112,8 +125,8 @@ is seen and not just a flicker.
 | idle | giggles with happy eyes and sparkles |
 | asleep | wakes up with a `!` |
 | walking | spins around, dizzy |
-| running a command | waves you off, `!?` |
-| reading | looks up at you, `o.o` |
+| running a command or compacting | waves you off, `!?` |
+| reading, fetching, on the task list or a plan | looks up at you, `o.o` |
 | editing | bonks its own head with the hammer |
 | celebrating | gives a high five |
 | searching | found it! Glass held high, `!` |

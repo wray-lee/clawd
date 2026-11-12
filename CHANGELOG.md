@@ -4,6 +4,30 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.6.0] - 2026-11-12
+
+### Added
+
+- New actions: a download bar for a web fetch, ticked boxes for the task
+  list, a blueprint drawn in plan mode, and a squeeze while the conversation
+  compacts.
+- New moods: Clawd says hi when a session starts, shrugs when you interrupt
+  a turn, and looks sad when a turn ends in an error or a refusal.
+
+- Idle, Clawd plays one of 14 fidgets at random every 8 seconds: it hops,
+  waves, stretches, looks around, dances, hums, yawns, sneezes, shows a heart,
+  juggles, crouches and jumps, stargazes, cheers, or nods off and snaps awake.
+- `scripts/`: the tools that draw the README's images and measure redraws
+  and CPU use.
+
+### Changed
+
+- Clawd naps after 10 quiet minutes, not 2.
+- The README's images are drawn like a terminal draws: block rows meet with
+  no seam and no overlap.
+- Reading a file shows the open pages beside Clawd, one turning now and then.
+- The actions GIF is a grid with every action playing at once.
+
 ## [0.5.0] - 2026-11-12
 
 ### Added

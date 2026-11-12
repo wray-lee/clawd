@@ -25,6 +25,7 @@ claude plugin test .
 - `hooks/view.ts`: the surface module that draws the band in its own region and posts clicks
 - `hooks/register.tsx`: the engine hooks
 - `tests/`: the tests, run by `claude plugin test .`
+- `scripts/`: tools for the README's images and for measuring performance
 
 ## Add an action
 
@@ -37,11 +38,20 @@ claude plugin test .
 
 The tests check every listed action stays inside the band at any width.
 
-## Screenshots
+## Screenshots and measurements
 
-`docs/assets/` holds the README images, taken from a real session in tmux
-(`tmux capture-pane -e`) and drawn to PNG and GIF with ImageMagick. Retake
-them when the look of Clawd changes.
+`docs/assets/` holds the README images. Redraw them when the look of Clawd
+changes. The tools in `scripts/` need bun, python3, ImageMagick 7 with Pango,
+and the JetBrains Mono font.
+
+- `scripts/render.sh` redraws `actions.gif`, `actions.png` and `crowd.png`
+  from the code. Add an action to `scripts/frames.ts` to put it in them.
+- The other images come from a real session in tmux: capture it with
+  `tmux capture-pane -e -p > shot.ans`, then
+  `python3 scripts/ansi2png.py shot.ans shot.png --session`.
+- `bun scripts/perf.ts` counts redraws a minute, idle and asleep, and times
+  one frame. Each change of the frame redraws the whole UI, so keep idle low.
+- `scripts/cpu.sh <tmux session>` measures a session's CPU use.
 
 ## Commits
 
