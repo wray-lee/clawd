@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] - 2026-11-12
+
+### Added
+
+- A small helper Clawd for each running subagent, workflow agents included.
+  A subagent's own subagents get a smaller one, right after its parent. Each
+  helper leaves when the engine reports its agent as completed, failed or killed.
+- Helper colors come at random from a palette of theme colors
+  (`hooks/palette.ts`), all different on screen until the palette runs out.
+
+### Changed
+
+- README: demo GIF, screenshots, feature list and FAQ, plus a Japanese version.
+
 ## [0.3.0] - 2026-11-12
 
 ### Added

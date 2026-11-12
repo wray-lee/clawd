@@ -20,7 +20,8 @@ claude plugin test .
 - `hooks/sprites.ts`: Clawd's parts (heads, arms, legs) and the `Action` type
 - `hooks/actions/<name>.ts`: one action each, a function from the tick to a pose
 - `hooks/actions/index.ts`: the list of actions
-- `hooks/clawd.ts`: the scene (position, which action plays) and drawing
+- `hooks/clawd.ts`: the scene (position, which action plays) and drawing, helpers included
+- `hooks/palette.ts`: the theme colors helper Clawds pick from
 - `hooks/register.tsx`: the engine hooks
 
 ## Add an action
@@ -32,6 +33,12 @@ claude plugin test .
    the reaction a click plays during an action (with its length in `EVENT_TICKS`).
 
 The tests check every listed action stays inside the band at any width.
+
+## Screenshots
+
+`docs/assets/` holds the README images, taken from a real session in tmux
+(`tmux capture-pane -e`) and drawn to PNG and GIF with ImageMagick. Retake
+them when the look of Clawd changes.
 
 ## Commits
 
