@@ -127,6 +127,9 @@ test('each subagent gets a helper; a subagent\'s own ones are smaller', async ()
   const nested = glyphs(frame({ ...start(), t: 5 }, null, 40, [helper('a'), helper('c', 2, 'a')]))
   expect(nested[2]).toContain('▛█▜')
   expect(nested[3]).toContain('▜▀▛')
+  // Three levels down and deeper, a single pixel each.
+  const deep = glyphs(frame({ ...start(), t: 5 }, null, 40, [helper('a'), helper('c', 2, 'a'), helper('d', 3, 'c'), helper('e', 4, 'd')]))
+  expect((deep[2]! + deep[3]!).split('▖').length - 1).toBe(2)
   // A child lines up right after its parent, an orphan on its own.
   const order = lineUp([helper('a'), helper('b'), helper('c', 2, 'a'), helper('d', 2, 'gone')]).map(h => h.id)
   expect(order.join()).toBe('a,c,b,d')

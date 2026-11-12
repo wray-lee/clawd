@@ -2,7 +2,7 @@
 // action's look lives in actions/; no `$` here, so tests drive it frame by frame.
 
 import { actions, type ActionName } from './actions'
-import { ARMS_DOWN, BLINK, HEAD, LEGS_A, MINI_BLINK, MINI_BODY, MINI_HEAD, MINI_W, TINY_BODY, TINY_HEAD, TINY_W, W, type Pose } from './sprites'
+import { ARMS_DOWN, BLINK, HEAD, LEGS_A, MINI_BLINK, MINI_BODY, MINI_HEAD, MINI_W, PIXEL, TINY_BODY, TINY_HEAD, TINY_W, W, type Pose } from './sprites'
 
 export { W }
 export const ROWS = 4
@@ -162,7 +162,7 @@ function drawHelpers(t: number, x0: number, columns: number, line: Helper[],
   const toLeft = x0 + W / 2 >= columns / 2
   let cursor = toLeft ? x0 - 1 : x0 + W + 1
   for (const [i, h] of line.entries()) {
-    const w = h.depth > 1 ? TINY_W : MINI_W
+    const w = h.depth > 2 ? 1 : h.depth > 1 ? TINY_W : MINI_W
     const col = toLeft ? cursor - w : cursor
     if (col < 0 || col + w > columns) {
       const more = `+${line.length - i}`
@@ -172,7 +172,8 @@ function drawHelpers(t: number, x0: number, columns: number, line: Helper[],
     // Each hops and blinks on its own beat; two rows, so a hop lifts it one.
     const top = (t + i * 4) % 12 < 2 ? 1 : 2
     const blink = (t + i * 7) % 41 < 2
-    if (h.depth > 1) {
+    if (h.depth > 2) put(top + 1, col, PIXEL, 'helper', h.color)
+    else if (h.depth > 1) {
       put(top, col, TINY_HEAD, 'helper', h.color)
       put(top + 1, col, TINY_BODY, 'helper', h.color)
     } else {

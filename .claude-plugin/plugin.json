@@ -1,6 +1,6 @@
 {
   "name": "clawd",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "An animated Clawd that walks while Claude works and naps when idle, above the prompt",
   "author": { "name": "wray-lee", "email": "i@wray7.top" },
   "homepage": "https://github.com/wray-lee/clawd",

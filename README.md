@@ -68,7 +68,8 @@ Restart Claude Code to load it. `/clawd` hides or shows the band.
 <img src="docs/assets/helpers.png" alt="Four helper Clawds in different colors beside Clawd, and a smaller one for a nested subagent" width="100%">
 
 - Each subagent gets a 5-column helper, and a subagent's own subagent gets a
-  3-column one. Each nested helper stands right after its parent.
+  3-column one. Three levels down and deeper, a helper is a single pixel.
+  Each nested helper stands right after its parent.
 - Each helper's color is picked at random from a palette of theme colors
   (`hooks/palette.ts`). No two helpers on screen share a color until the
   palette runs out.

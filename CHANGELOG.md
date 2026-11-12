@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.4.1] - 2026-11-12
+
+### Changed
+
+- Subagents three levels down and deeper show as a single pixel.
+
 ## [0.4.0] - 2026-11-12
 
 ### Added

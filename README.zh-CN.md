@@ -59,7 +59,7 @@ claude plugin install clawd --marketplace wray-lee/clawd
 
 <img src="docs/assets/helpers.png" alt="Clawd 旁边四只不同颜色的小 Clawd，以及一只代表嵌套子代理的更小的" width="100%">
 
-- 每个子代理一只 5 列宽的小 Clawd；子代理开出的子代理是 3 列宽的更小一只，紧跟在它的父代理后面。
+- 每个子代理一只 5 列宽的小 Clawd；子代理开出的子代理是 3 列宽的更小一只；第三层及更深的只画成一个像素点。每只都紧跟在它的父代理后面。
 - 颜色从主题色色库（`hooks/palette.ts`）里随机挑；色库用完之前，同屏的小 Clawd 不会撞色。
 - 小 Clawd 排在 Clawd 空间更大的那一侧；横栏放不下时，剩下的显示为 `+N`。
 - 引擎报告代理已完成、失败或被终止时，小 Clawd 离开；还在等后台任务的子代理会继续留着。

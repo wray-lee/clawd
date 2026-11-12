@@ -52,3 +52,6 @@ export const MINI_BODY = '▜▜▀▛▛'
 export const TINY_W = 3
 export const TINY_HEAD = '▛█▜'
 export const TINY_BODY = '▜▀▛'
+
+// Three levels down and deeper: one pixel, 1 column.
+export const PIXEL = '▖'
