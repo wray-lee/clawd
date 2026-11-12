@@ -1,10 +1,19 @@
-import { ARMS_DOWN, ARMS_UP, type Action } from '../sprites'
+import { ARMS_DOWN, ARMS_UP, W, type Action, type Fx } from '../sprites'
 
-// Editing files: arms hammer down, a spark flies on each hit.
-export const edit: Action = ({ t }) => {
+const HEAD = '#bcbcbc' // the hammer's steel
+const WOOD = '#af875f' // and its handle
+
+// Editing files: swings a hammer up, then down onto the work with a spark.
+// It swings on whichever side has room.
+export const edit: Action = ({ t, x, columns }) => {
+  const right = x + W + 5 <= columns
   const hit = t % 4 < 2
-  return {
-    arms: hit ? ARMS_DOWN : ARMS_UP,
-    fx: hit ? [t % 8 < 4 ? [1, -1, '*'] : [1, 9, '*']] : [],
-  }
+  const fx: Fx[] = right
+    ? hit
+      ? [[2, 9, '▄▄', WOOD], [2, 11, '█▌', HEAD], [3, 11, '▀▘', HEAD], [2, 13, '*']]
+      : [[1, 9, '▄▄', HEAD], [2, 9, '▌', WOOD]]
+    : hit
+      ? [[2, -2, '▄▄', WOOD], [2, -4, '▐█', HEAD], [3, -4, '▝▀', HEAD], [2, -5, '*']]
+      : [[1, -2, '▄▄', HEAD], [2, -1, '▐', WOOD]]
+  return { arms: hit ? ARMS_DOWN : ARMS_UP, fx }
 }

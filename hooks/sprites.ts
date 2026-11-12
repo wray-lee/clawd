@@ -17,8 +17,9 @@ export const TYPE_R = '▝▜█████▛▖'
 export const LEGS_A = '  ▘▘ ▝▝  '
 export const LEGS_B = '  ▝▝ ▘▘  '
 
-// One effect glyph run: row in the band, column from Clawd's left edge, text.
-export type Fx = [row: number, col: number, text: string]
+// One effect glyph run: row in the band, column from Clawd's left edge, text,
+// and its color (absent: the color palette.ts gives the glyph).
+export type Fx = [row: number, col: number, text: string, color?: string]
 
 // What an action asks for this frame; anything left out keeps the default
 // (open eyes that blink, arms down, legs together, standing on row 1).
@@ -52,6 +53,10 @@ export const MINI_BODY = '▜▜▀▛▛'
 export const TINY_W = 3
 export const TINY_HEAD = '▛█▜'
 export const TINY_BODY = '▜▀▛'
+
+// A workflow agent's top hat, a row above its head, one per size.
+export const MINI_HAT = '▂▟█▙▂'
+export const TINY_HAT = '▗█▖'
 
 // Three levels down and deeper: one pixel, 1 column.
 export const PIXEL = '▖'

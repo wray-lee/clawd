@@ -5,27 +5,33 @@ import { bonk } from './bonk'
 import { celebrate } from './celebrate'
 import { echo } from './echo'
 import { edit } from './edit'
+import { found } from './found'
 import { highfive } from './highfive'
 import { idle } from './idle'
+import { mcp } from './mcp'
 import { oops } from './oops'
 import { peek } from './peek'
 import { pet } from './pet'
+import { poof } from './poof'
 import { read } from './read'
+import { search } from './search'
 import { shell } from './shell'
 import { shoo } from './shoo'
+import { skill } from './skill'
 import { sleep } from './sleep'
 import { spin } from './spin'
 import { wake } from './wake'
 import { walk } from './walk'
+import { zap } from './zap'
 
 export const actions = {
   // what Claude is doing
-  walk, shell, read, edit,
+  walk, shell, read, search, edit, skill, mcp,
   // between turns
   idle, sleep, echo,
   // reactions to the session
   celebrate, oops, wake,
   // reactions to a click
-  pet, spin, shoo, peek, bonk, highfive,
+  pet, spin, shoo, peek, bonk, highfive, found, poof, zap,
 }
 export type ActionName = keyof typeof actions

@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { Hook, Register } from 'claude-code'
 
-import { ROWS, activityOf, frame, isAsleep, poke, react, start, step, typed, type Activity, type Helper } from './clawd'
+import { HOLD, ROWS, activityNow, activityOf, frame, isAsleep, poke, react, runsOf, start, step, toneAt, typed, type Activity, type Helper, type Recent, type Row } from './clawd'
 import { pick } from './palette'
 
 const isHidden = atom({ plugin: 'clawd', key: 'isHidden' } as const, false)
@@ -24,15 +24,14 @@ export const register: Register = on => {
   let scene = start()
   // What the last render showed; the timer only ticks while Clawd is on screen.
   let shown: { columns: number; isWorking: boolean } | null = null
+  let drawn: Row[] = [] // the last frame, to tell what a click hit
+  let drawnKey = '' // and as text, to tell whether a tick changed it
   // Tools running now, newest last: the newest picks Clawd's activity.
   const running: string[] = []
   // Subagents running now, workflow agents included: one helper Clawd each.
   const helpers = new Map<string, Helper>()
-  const activity = (isWorking: boolean): Activity | null => {
-    const tool = running[running.length - 1]
-    if (tool) return activityOf(tool)
-    return isWorking ? 'think' : null
-  }
+  let recent: Recent = null // the last tool started, held on screen a moment
+  const activity = (isWorking: boolean): Activity | null => activityNow(running, recent, scene.t, isWorking)
 
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'clawd', description: 'Show or hide Clawd above the prompt' })
@@ -41,7 +40,9 @@ export const register: Register = on => {
       if (scene.t % 10 === 0 && helpers.size) await settle($, helpers)
       if (!shown) return
       scene = step(scene, activity(shown.isWorking), shown.columns)
-      $.ui.invalidate('ui.render')
+      // Redraw only when the frame changed: idle, most ticks look the same.
+      const key = JSON.stringify(frame(scene, activity(shown.isWorking), shown.columns, [...helpers.values()]))
+      if (key !== drawnKey) $.ui.invalidate('ui.render')
     })
 
     return next(e)
@@ -60,6 +61,7 @@ export const register: Register = on => {
 
   on('tool.call', async ($, e, next) => {
     running.push(e.tool)
+    recent = { activity: activityOf(e.tool), until: scene.t + HOLD }
     try {
       const result = await next(e)
       if ('isError' in result && result.isError) scene = react(scene, 'oops')
@@ -78,6 +80,7 @@ export const register: Register = on => {
         parent: e.parentAgentId,
         depth: (parent?.depth ?? 0) + 1,
         color: pick([...helpers.values()].map(h => h.color)),
+        isWorkflow: !!e.workflow,
       })
       $.ui.invalidate('ui.render')
     }
@@ -89,6 +92,17 @@ export const register: Register = on => {
     // The main thread's answers only: not a subagent's, an abort or an error.
     if (!e.agentId && e.reason === 'answer') scene = react(scene, 'celebrate')
     return next(e)
+  })
+
+  // A click in the band, from ./view.ts: only one on Clawd's own body counts.
+  on('ui.message', ($, e, next) => {
+    if (e.element !== 'clawd') return next(e)
+    const { x, y } = (e.data ?? {}) as { x?: number; y?: number }
+    if (shown && typeof x === 'number' && typeof y === 'number' && toneAt(drawn, x, y) === 'body') {
+      scene = poke(scene, activity(shown.isWorking))
+      $.ui.invalidate('ui.render')
+    }
+    return {}
   })
 
   on('command.run', { command: 'clawd' }, async $ => {
@@ -104,34 +118,12 @@ export const register: Register = on => {
       return next(e)
     }
     shown = { columns, isWorking: e.props.isWorking }
-    const { Box, Button, Text } = $.ui.resolve(e)
-    const isWorking = shown.isWorking
-    const onPress = () => {
-      scene = poke(scene, activity(isWorking))
-      $.ui.invalidate('ui.render')
-    }
+    drawn = frame(scene, activity(shown.isWorking), columns, [...helpers.values()])
+    drawnKey = JSON.stringify(drawn)
+    const { Client } = $.ui.resolve(e)
 
-    // `claude` is the theme key the welcome screen paints Clawd with, so it is
-    // the same orange in every theme and terminal. Clawd's own cells are plain
-    // Buttons, so a click on it lands; the space around it is not.
-    return (
-      <Box flexDirection="column">
-        {frame(scene, activity(isWorking), columns, [...helpers.values()]).map((row, r) => (
-          <Box flexDirection="row">
-            {row.map((seg, i) =>
-              seg.tone === 'body' ? (
-                <Button key={`clawd-${r}-${i}`} plain onPress={onPress}>
-                  <Text color="claude">{seg.text}</Text>
-                </Button>
-              ) : seg.tone === 'helper' ? (
-                <Text color={seg.color}>{seg.text}</Text>
-              ) : (
-                <Text dimColor={seg.tone === 'fx'}>{seg.text}</Text>
-              ),
-            )}
-          </Box>
-        ))}
-      </Box>
-    )
+    // Drawn by ./view.ts in a region of its own: a press there can't select
+    // Clawd's text, and a click comes back as a ui.message.
+    return <Client key="clawd" module="./view.ts" props={{ rows: drawn.map(runsOf) }} width={columns} height={ROWS} />
   })
 }
