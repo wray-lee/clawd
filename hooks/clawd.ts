@@ -1,74 +1,105 @@
-// Pure scene logic: no `$`, so the test can drive it frame by frame.
+// The scene: what Clawd is doing and where, and how a frame is drawn. Each
+// action's look lives in actions/; no `$` here, so tests drive it frame by frame.
 
+import { actions, type ActionName } from './actions'
+import { ARMS_DOWN, BLINK, HEAD, LEGS_A, W, type Pose } from './sprites'
+
+export { W }
 export const ROWS = 4
-export const W = 9 // sprite width
-
-// Clawd as drawn on Claude Code's welcome screen, plus a few poses.
-const HEAD = ' ▐▛███▜▌ '
-const HEAD_BLINK = ' ▐█████▌ '
-const ARMS_DOWN = '▝▜█████▛▘'
-const ARMS_UP = '▗▜█████▛▖'
-const LEGS_A = '  ▘▘ ▝▝  '
-const LEGS_B = '  ▝▝ ▘▘  '
-const BLANK = ' '.repeat(W)
 
 const SLEEP_AFTER = 1200 // ticks idle (~2 min at 100ms) before a nap
+
+// What Claude is doing right now, from the running tool; null between turns.
+export type Activity = 'think' | 'shell' | 'read' | 'edit'
+// Short reactions that play over everything else.
+export type EventKind = 'celebrate' | 'oops' | 'wake'
+const EVENT_TICKS: Record<EventKind, number> = { celebrate: 20, oops: 10, wake: 8 }
 
 export type Scene = {
   t: number
   x: number
   dir: 1 | -1
   idle: number // ticks since Claude last worked
+  event: { kind: EventKind; until: number } | null
 }
 
-// One row of the band: spaces, Clawd's slice (theme orange), then any z's (dim).
-export type Row = { pad: string; body: string; zzz: string }
+export type Tone = 'body' | 'fx' | 'none'
+export type Segment = { text: string; tone: Tone }
+export type Row = Segment[]
 
 // Starts at the right edge: frame and step clamp x to the band's width.
-export const start = (): Scene => ({ t: 0, x: Number.MAX_SAFE_INTEGER, dir: -1, idle: 0 })
+export const start = (): Scene => ({ t: 0, x: Number.MAX_SAFE_INTEGER, dir: -1, idle: 0, event: null })
+
+export const isAsleep = (s: Scene, activity: Activity | null) => activity === null && s.idle >= SLEEP_AFTER
+
+export const react = (s: Scene, kind: EventKind): Scene => ({
+  ...s,
+  idle: 0,
+  event: { kind, until: s.t + EVENT_TICKS[kind] },
+})
+
+export function activityOf(tool: string): Activity {
+  if (/^(Bash|BashOutput|KillShell|PowerShell)$/.test(tool)) return 'shell'
+  if (/^(Read|Grep|Glob|LS|WebFetch|WebSearch|ToolSearch)$/.test(tool)) return 'read'
+  if (/^(Edit|MultiEdit|Write|NotebookEdit)$/.test(tool)) return 'edit'
+  return 'think'
+}
+
+const ACTIVITY_ACTION: Record<Activity, ActionName> = { think: 'walk', shell: 'shell', read: 'read', edit: 'edit' }
+
+export function actionFor(s: Scene, activity: Activity | null): ActionName {
+  if (s.event) return s.event.kind
+  if (activity) return ACTIVITY_ACTION[activity]
+  return isAsleep(s, activity) ? 'sleep' : 'idle'
+}
 
 // One 100ms tick.
-export function step(s: Scene, isWorking: boolean, columns: number): Scene {
+export function step(s: Scene, activity: Activity | null, columns: number): Scene {
   const t = s.t + 1
   const max = Math.max(0, columns - W)
-  if (!isWorking) return { ...s, t, x: Math.min(s.x, max), idle: s.idle + 1 }
+  const event = s.event && t < s.event.until ? s.event : null
   let { dir } = s
   let x = Math.min(s.x, max)
-  if (t % 2 === 0) {
+  // Only walks while thinking; at a tool it stops to work.
+  if (activity === 'think' && !event && t % 2 === 0) {
     if (x + dir < 0 || x + dir > max) dir = dir === 1 ? -1 : 1
     x = Math.min(max, Math.max(0, x + dir))
   }
-  return { t, x, dir, idle: 0 }
+  return { t, x, dir, idle: activity === null && !event ? s.idle + 1 : 0, event }
 }
 
-export function frame(s: Scene, isWorking: boolean, columns: number): Row[] {
-  const isAsleep = !isWorking && s.idle >= SLEEP_AFTER
-  // Asleep, Clawd steps left so the z's fit inside the band.
-  const x = Math.min(s.x, Math.max(0, columns - W - (isAsleep ? 4 : 0)))
+export function frame(s: Scene, activity: Activity | null, columns: number): Row[] {
+  const chars = Array.from({ length: ROWS }, () => Array<string>(columns).fill(' '))
+  const tones = Array.from({ length: ROWS }, () => Array<Tone>(columns).fill('none'))
+  const put = (row: number, col: number, text: string, tone: Tone) =>
+    [...text].forEach((ch, i) => {
+      const c = col + i
+      if (ch === ' ' || row < 0 || row >= ROWS || c < 0 || c >= columns) return
+      chars[row]![c] = ch
+      tones[row]![c] = tone
+    })
+
+  const x0 = Math.min(s.x, Math.max(0, columns - W))
   const blink = s.t % 37 < 2 // a short blink every ~3.7s
-  const sprite = [BLANK, BLANK, BLANK, BLANK]
-  const zzz = ['', '', '', '']
+  const pose: Pose = actions[actionFor(s, activity)]({ t: s.t, x: x0, columns, blink })
+  const x = Math.max(0, x0 + (pose.dx ?? 0))
+  const top = pose.top ?? 1
 
-  if (isWorking) {
-    const stride = Math.floor(s.t / 2) % 2 === 0
-    sprite.splice(1, 3, blink ? HEAD_BLINK : HEAD, stride ? ARMS_UP : ARMS_DOWN, stride ? LEGS_A : LEGS_B)
-  } else if (isAsleep) {
-    sprite.splice(1, 3, HEAD_BLINK, ARMS_DOWN, LEGS_A)
-    // z's drift up and to the right of the head, one after another.
-    const phase = Math.floor(s.t / 6) % 4
-    zzz[1] = phase >= 1 ? 'z' : ''
-    zzz[0] = phase >= 2 ? (phase >= 3 ? ' z Z' : ' z') : ''
-  } else {
-    // Awake and waiting: blink, and a little hop with a wave every ~6s.
-    const hop = s.t % 60 >= 57
-    sprite.splice(hop ? 0 : 1, 3, blink ? HEAD_BLINK : HEAD, hop ? ARMS_UP : ARMS_DOWN, LEGS_A)
-  }
+  put(top, x, pose.head ?? (blink ? BLINK : HEAD), 'body')
+  put(top + 1, x, pose.arms ?? ARMS_DOWN, 'body')
+  put(top + 2, x, pose.legs ?? LEGS_A, 'body')
+  for (const [row, col, text] of pose.fx ?? []) put(row, x + col, text, 'fx')
 
-  // Cut to the band's width so a narrow terminal never wraps.
-  const room = Math.max(0, columns - x)
-  return sprite.map((body, r) => ({
-    pad: ' '.repeat(x),
-    body: body.slice(0, room),
-    zzz: zzz[r]!.slice(0, Math.max(0, room - W)),
-  }))
+  // Runs of one tone become one Text each, trailing blanks dropped.
+  return chars.map((line, r) => {
+    const row: Row = []
+    line.forEach((ch, c) => {
+      const tone = tones[r]![c]!
+      const last = row[row.length - 1]
+      if (last && last.tone === tone) last.text += ch
+      else row.push({ text: ch, tone })
+    })
+    if (row[row.length - 1]?.tone === 'none') row.pop()
+    return row
+  })
 }

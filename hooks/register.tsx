@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
-import { ROWS, frame, start, step } from './clawd'
+import { ROWS, activityOf, frame, isAsleep, react, start, step, type Activity } from './clawd'
 
 const isHidden = atom({ plugin: 'clawd', key: 'isHidden' } as const, false)
 
@@ -9,15 +9,44 @@ export const register: Register = on => {
   let scene = start()
   // What the last render showed; the timer only ticks while Clawd is on screen.
   let shown: { columns: number; isWorking: boolean } | null = null
+  // Tools running now, newest last: the newest picks Clawd's activity.
+  const running: string[] = []
+  const activity = (isWorking: boolean): Activity | null => {
+    const tool = running[running.length - 1]
+    if (tool) return activityOf(tool)
+    return isWorking ? 'think' : null
+  }
 
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'clawd', description: 'Show or hide Clawd above the prompt' })
     $.clock.every(100, () => {
       if (!shown) return
-      scene = step(scene, shown.isWorking, shown.columns)
+      scene = step(scene, activity(shown.isWorking), shown.columns)
       $.ui.invalidate('ui.render')
     })
 
+    return next(e)
+  })
+
+  on('prompt.submit', ($, e, next) => {
+    if (isAsleep(scene, null)) scene = react(scene, 'wake')
+    return next(e)
+  })
+
+  on('tool.call', async ($, e, next) => {
+    running.push(e.tool)
+    try {
+      const result = await next(e)
+      if ('isError' in result && result.isError) scene = react(scene, 'oops')
+      return result
+    } finally {
+      running.splice(running.lastIndexOf(e.tool), 1)
+    }
+  })
+
+  on('turn.complete', ($, e, next) => {
+    // The main thread's answers only: not a subagent's, an abort or an error.
+    if (!e.agentId && e.reason === 'answer') scene = react(scene, 'celebrate')
     return next(e)
   })
 
@@ -40,11 +69,17 @@ export const register: Register = on => {
     // the same orange in every theme and terminal.
     return (
       <Box flexDirection="column">
-        {frame(scene, shown.isWorking, columns).map(row => (
+        {frame(scene, activity(shown.isWorking), columns).map(row => (
           <Text wrap="truncate">
-            {row.pad}
-            <Text color="claude">{row.body}</Text>
-            <Text dimColor>{row.zzz}</Text>
+            {row.map(seg =>
+              seg.tone === 'body' ? (
+                <Text color="claude">{seg.text}</Text>
+              ) : seg.tone === 'fx' ? (
+                <Text dimColor>{seg.text}</Text>
+              ) : (
+                seg.text
+              ),
+            )}
           </Text>
         ))}
       </Box>
