@@ -37,9 +37,14 @@ claude plugin install clawd --marketplace wray-lee/clawd
 | What | How |
 | --- | --- |
 | Hide or show Clawd | `/clawd` |
-| Walks | while a model turn is running |
-| Blinks and hops | while idle |
-| Sleeps | after about 2 minutes idle |
+| Walks | while Claude is thinking |
+| Types, `>_` above | while a shell command runs |
+| Eyes scan, `...` above | while reading or searching |
+| Hammers, sparks fly | while editing files |
+| Happy eyes, hops, sparkles | when a turn finishes |
+| `!` and a shake | when a tool fails |
+| Blinks, glances, hops | while idle |
+| Sleeps with `z Z` | after about 2 minutes idle; wakes on your next prompt |
 
 ## Requirements
 
