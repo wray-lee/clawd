@@ -164,7 +164,7 @@ test('the band draws Clawd in the theme orange and hides on /clawd', async ($, o
 
   const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
   // The row's outer Text matches too; the colored one is the inner slice.
-  const texts = await ui.findAll({ type: 'Text', text: /▐▛███▜▌/ })
+  const texts = await ui.findAll({ type: 'Text', text: /▐▛███▜▌|▐█████▌/ })
   expect(texts.some(t => t.props.color === 'claude')).toBe(true) // the welcome screen's own orange
   // Clicking Clawd's body pets it: happy eyes.
   await ui.press({ key: 'clawd-1-1' })
@@ -184,18 +184,18 @@ test('the band draws Clawd in the theme orange and hides on /clawd', async ($, o
     provider: { plugin: 'engine', tier: 'core' }, parentModel: 'opus', background: true, fork: false,
   })
   const busy = await $.ui.mount({ ...BAND, surface: 'terminal' })
-  const minis = await busy.findAll({ type: 'Text', text: /▐▛█▜▌/ })
+  const minis = await busy.findAll({ type: 'Text', text: /▐▛█▜▌|▐███▌/ })
   expect(minis.some(t => (PALETTE as readonly string[]).includes(String(t.props.color)))).toBe(true)
   await busy.unmount()
   const end = { answer: 'ok', durationMs: 1, isAborted: false, turnId: 't2', reason: 'answer', agentId: 'sub1' } as const
   await $.turn.complete(end)
   const waiting = await $.ui.mount({ ...BAND, surface: 'terminal' })
-  expect(await waiting.find({ type: 'Text', text: /▐▛█▜▌/ })).not.toBe(undefined)
+  expect(await waiting.find({ type: 'Text', text: /▐▛█▜▌|▐███▌/ })).not.toBe(undefined)
   await waiting.unmount()
   listed = []
   await $.turn.complete(end)
   const done = await $.ui.mount({ ...BAND, surface: 'terminal' })
-  expect(await done.find({ type: 'Text', text: /▐▛█▜▌/ })).toBe(undefined)
+  expect(await done.find({ type: 'Text', text: /▐▛█▜▌|▐███▌/ })).toBe(undefined)
   await done.unmount()
 
   await $.command.run({
