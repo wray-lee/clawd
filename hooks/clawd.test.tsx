@@ -1,7 +1,8 @@
 import { expect, test } from 'claude-code/testing'
 
 import { actions, type ActionName } from './actions'
-import { actionFor, activityOf, frame, poke, react, start, step, typed, W, type Activity, type EventKind, type Row } from './clawd'
+import { actionFor, activityOf, frame, lineUp, poke, react, start, step, typed, W, type Activity, type EventKind, type Helper, type Row } from './clawd'
+import { PALETTE, pick } from './palette'
 
 const BAND = {
   plugin: 'clawd',
@@ -117,6 +118,31 @@ test('every action looks different from standing idle', async () => {
   }
 })
 
+const helper = (id: string, depth = 1, parent?: string): Helper => ({ id, parent, depth, color: 'success' })
+
+test('each subagent gets a helper; a subagent\'s own ones are smaller', async () => {
+  // Clawd at the right edge, so helpers line up on its left.
+  const rows = glyphs(frame({ ...start(), t: 5 }, null, 40, [helper('a'), helper('b')]))
+  expect(rows[2]!.split('▐▛█▜▌').length - 1).toBe(2)
+  const nested = glyphs(frame({ ...start(), t: 5 }, null, 40, [helper('a'), helper('c', 2, 'a')]))
+  expect(nested[2]).toContain('▛█▜')
+  expect(nested[3]).toContain('▜▀▛')
+  // A child lines up right after its parent, an orphan on its own.
+  const order = lineUp([helper('a'), helper('b'), helper('c', 2, 'a'), helper('d', 2, 'gone')]).map(h => h.id)
+  expect(order.join()).toBe('a,c,b,d')
+  // Too many for the band: the rest is counted, never drawn past the edge.
+  const many = glyphs(frame({ ...start(), t: 5 }, null, 20, Array.from({ length: 9 }, (_, i) => helper(`h${i}`))))
+  expect(many[3]).toContain('+')
+  for (const row of many) expect([...row].length <= 20).toBe(true)
+})
+
+test('helper colors come from the palette, all different until it runs out', async () => {
+  const taken: string[] = []
+  for (let i = 0; i < PALETTE.length; i++) taken.push(pick(taken))
+  expect(new Set(taken).size).toBe(PALETTE.length)
+  expect((PALETTE as readonly string[]).includes(pick(taken))).toBe(true)
+})
+
 test('the band draws Clawd in the theme orange and hides on /clawd', async ($, on) => {
   on('command.register', () => ({ value: { command: 'clawd' } }))
   on('clock.every', () => ({ value: undefined }))
@@ -127,6 +153,10 @@ test('the band draws Clawd in the theme orange and hides on /clawd', async ($, o
   })
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('turn.complete', () => ({ text: '' }))
+  on('agent.spawn', () => ({ model: 'haiku', agentId: 'sub1' }))
+  // Listed as running, as a workflow agent is not: a turn's end alone keeps it.
+  let listed = [{ id: 'sub1', status: 'running' as const, description: 'd', type: 'Explore' }]
+  on('agent.list', () => ({ value: listed }))
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
 
   const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
@@ -144,6 +174,26 @@ test('the band draws Clawd in the theme orange and hides on /clawd', async ($, o
   const happy = await $.ui.mount({ ...BAND, surface: 'terminal' })
   expect(await happy.find({ type: 'Text', text: /▐▟███▙▌/ })).not.toBe(undefined)
   await happy.unmount()
+
+  // A subagent starts: a helper in a palette color; it finishes: gone.
+  await $.agent.spawn({
+    tool_use_id: 'tu1', prompt: 'p', description: 'd', subagentType: 'Explore',
+    provider: { plugin: 'engine', tier: 'core' }, parentModel: 'opus', background: true, fork: false,
+  })
+  const busy = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  const minis = await busy.findAll({ type: 'Text', text: /▐▛█▜▌/ })
+  expect(minis.some(t => (PALETTE as readonly string[]).includes(String(t.props.color)))).toBe(true)
+  await busy.unmount()
+  const end = { answer: 'ok', durationMs: 1, isAborted: false, turnId: 't2', reason: 'answer', agentId: 'sub1' } as const
+  await $.turn.complete(end)
+  const waiting = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await waiting.find({ type: 'Text', text: /▐▛█▜▌/ })).not.toBe(undefined)
+  await waiting.unmount()
+  listed = []
+  await $.turn.complete(end)
+  const done = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await done.find({ type: 'Text', text: /▐▛█▜▌/ })).toBe(undefined)
+  await done.unmount()
 
   await $.command.run({
     command: 'clawd',

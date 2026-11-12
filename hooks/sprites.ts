@@ -40,3 +40,15 @@ export type ActionCtx = {
 }
 
 export type Action = (c: ActionCtx) => Pose
+
+// A helper Clawd, one per running subagent: Clawd's head narrowed to 5
+// columns over its arms and four legs, 2 rows.
+export const MINI_W = 5
+export const MINI_HEAD = '▐▛█▜▌'
+export const MINI_BLINK = '▐███▌'
+export const MINI_BODY = '▜▜▀▛▛'
+
+// A subagent's own subagent: 3 columns, two eyes over two legs.
+export const TINY_W = 3
+export const TINY_HEAD = '▛█▜'
+export const TINY_BODY = '▜▀▛'

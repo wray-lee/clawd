@@ -2,7 +2,7 @@
 // action's look lives in actions/; no `$` here, so tests drive it frame by frame.
 
 import { actions, type ActionName } from './actions'
-import { ARMS_DOWN, BLINK, HEAD, LEGS_A, W, type Pose } from './sprites'
+import { ARMS_DOWN, BLINK, HEAD, LEGS_A, MINI_BLINK, MINI_BODY, MINI_HEAD, MINI_W, TINY_BODY, TINY_HEAD, TINY_W, W, type Pose } from './sprites'
 
 export { W }
 export const ROWS = 4
@@ -35,8 +35,25 @@ export type Scene = {
   typing: { keys: number; char: string; until: number } | null
 }
 
-export type Tone = 'body' | 'fx' | 'none'
-export type Segment = { text: string; tone: Tone }
+export type Tone = 'body' | 'fx' | 'helper' | 'none'
+export type Segment = { text: string; tone: Tone; color?: string }
+
+// A running subagent, drawn as a small Clawd in its own color. depth 1 is one
+// the main loop started; a subagent's own subagents are 2 and up, and smaller.
+export type Helper = { id: string; parent?: string; depth: number; color: string }
+
+// Helpers in the order they line up: each one's subagents right after it.
+export function lineUp(helpers: Helper[]): Helper[] {
+  const ids = new Set(helpers.map(h => h.id))
+  const out: Helper[] = []
+  const add = (h: Helper) => {
+    out.push(h)
+    for (const c of helpers) if (c.parent === h.id) add(c)
+  }
+  // A helper whose parent already finished stands in line on its own.
+  for (const h of helpers) if (!h.parent || !ids.has(h.parent)) add(h)
+  return out
+}
 export type Row = Segment[]
 
 // Starts at the right edge: frame and step clamp x to the band's width.
@@ -98,15 +115,17 @@ export function step(s: Scene, activity: Activity | null, columns: number): Scen
   return { t, x, dir, idle: isQuiet ? s.idle + 1 : 0, event, typing }
 }
 
-export function frame(s: Scene, activity: Activity | null, columns: number): Row[] {
+export function frame(s: Scene, activity: Activity | null, columns: number, helpers: Helper[] = []): Row[] {
   const chars = Array.from({ length: ROWS }, () => Array<string>(columns).fill(' '))
   const tones = Array.from({ length: ROWS }, () => Array<Tone>(columns).fill('none'))
-  const put = (row: number, col: number, text: string, tone: Tone) =>
+  const colors = Array.from({ length: ROWS }, () => Array<string | undefined>(columns).fill(undefined))
+  const put = (row: number, col: number, text: string, tone: Tone, color?: string) =>
     [...text].forEach((ch, i) => {
       const c = col + i
       if (ch === ' ' || row < 0 || row >= ROWS || c < 0 || c >= columns) return
       chars[row]![c] = ch
       tones[row]![c] = tone
+      colors[row]![c] = color
     })
 
   const x0 = Math.min(s.x, Math.max(0, columns - W))
@@ -119,17 +138,47 @@ export function frame(s: Scene, activity: Activity | null, columns: number): Row
   put(top + 1, x, pose.arms ?? ARMS_DOWN, 'body')
   put(top + 2, x, pose.legs ?? LEGS_A, 'body')
   for (const [row, col, text] of pose.fx ?? []) put(row, x + col, text, 'fx')
+  drawHelpers(s.t, x0, columns, lineUp(helpers), put)
 
   // Runs of one tone become one Text each, trailing blanks dropped.
   return chars.map((line, r) => {
     const row: Row = []
     line.forEach((ch, c) => {
       const tone = tones[r]![c]!
+      const color = colors[r]![c]
       const last = row[row.length - 1]
-      if (last && last.tone === tone) last.text += ch
-      else row.push({ text: ch, tone })
+      if (last && last.tone === tone && last.color === color) last.text += ch
+      else row.push(color ? { text: ch, tone, color } : { text: ch, tone })
     })
     if (row[row.length - 1]?.tone === 'none') row.pop()
     return row
   })
+}
+
+// Helpers line up beside Clawd, on the side with more room, each hopping on
+// its own beat. Those that do not fit show as a dim "+N".
+function drawHelpers(t: number, x0: number, columns: number, line: Helper[],
+  put: (row: number, col: number, text: string, tone: Tone, color?: string) => void) {
+  const toLeft = x0 + W / 2 >= columns / 2
+  let cursor = toLeft ? x0 - 1 : x0 + W + 1
+  for (const [i, h] of line.entries()) {
+    const w = h.depth > 1 ? TINY_W : MINI_W
+    const col = toLeft ? cursor - w : cursor
+    if (col < 0 || col + w > columns) {
+      const more = `+${line.length - i}`
+      put(3, toLeft ? Math.max(0, cursor - more.length) : cursor, more, 'fx')
+      return
+    }
+    // Each hops and blinks on its own beat; two rows, so a hop lifts it one.
+    const top = (t + i * 4) % 12 < 2 ? 1 : 2
+    const blink = (t + i * 7) % 41 < 2
+    if (h.depth > 1) {
+      put(top, col, TINY_HEAD, 'helper', h.color)
+      put(top + 1, col, TINY_BODY, 'helper', h.color)
+    } else {
+      put(top, col, blink ? MINI_BLINK : MINI_HEAD, 'helper', h.color)
+      put(top + 1, col, MINI_BODY, 'helper', h.color)
+    }
+    cursor = toLeft ? col - 1 : col + w + 1
+  }
 }
