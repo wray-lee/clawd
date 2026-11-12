@@ -44,7 +44,23 @@ claude plugin install clawd --marketplace wray-lee/clawd
 | Happy eyes, hops, sparkles | when a turn finishes |
 | `!` and a shake | when a tool fails |
 | Blinks, glances, hops | while idle |
-| Sleeps with `z Z` | after about 2 minutes idle; wakes on your next prompt |
+| Sleeps with `z Z` | after about 2 minutes idle; wakes when you type |
+| Types along, holds up your last key | while you type in the prompt |
+
+### Click Clawd
+
+Clicks need the fullscreen layout, where the terminal reports the mouse (tmux
+starts without it; set `CLAUDE_CODE_NO_FLICKER=1`). Each moment has its own reaction:
+
+| Clawd is | A click |
+| --- | --- |
+| idle | giggles with happy eyes and sparkles |
+| asleep | wakes up with a "!" |
+| walking | spins around, dizzy |
+| running a command | waves you off, `!?` |
+| reading | looks up at you, `o.o` |
+| editing | bonks its own head with the hammer |
+| celebrating | gives a high five |
 
 ## Requirements
 

@@ -28,7 +28,8 @@ claude plugin test .
 1. Write `hooks/actions/<name>.ts` exporting an `Action`. Use only one-column
    glyphs (ASCII or quadrant blocks), so CJK terminals stay aligned.
 2. List it in `hooks/actions/index.ts`.
-3. Pick it in `actionFor` in `hooks/clawd.ts`.
+3. Pick it in `hooks/clawd.ts`: in `actionFor` for a state, or in `CLICK` for
+   the reaction a click plays during an action (with its length in `EVENT_TICKS`).
 
 The tests check every listed action stays inside the band at any width.
 

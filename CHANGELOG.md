@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] - 2026-11-12
+
+### Added
+
+- Click Clawd: it reacts to fit what it is doing. Idle, it giggles; asleep, it
+  wakes; walking, it spins around; at a command, it waves you off; reading, it
+  looks up at you; editing, the hammer bonks its own head; celebrating, a high five.
+- Type in the prompt: Clawd types along and holds up the last key you typed.
+  Typing also wakes it.
+
 ## [0.2.0] - 2026-11-12
 
 ### Added
