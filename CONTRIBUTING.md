@@ -21,8 +21,10 @@ claude plugin test .
 - `hooks/actions/<name>.ts`: one action each, a function from the tick to a pose
 - `hooks/actions/index.ts`: the list of actions
 - `hooks/clawd.ts`: the scene (position, which action plays) and drawing, helpers included
-- `hooks/palette.ts`: the theme colors helper Clawds pick from
+- `hooks/palette.ts`: the colors helper Clawds pick from, the workflow hat's, and each effect glyph's
+- `hooks/view.ts`: the surface module that draws the band in its own region and posts clicks
 - `hooks/register.tsx`: the engine hooks
+- `tests/`: the tests, run by `claude plugin test .`
 
 ## Add an action
 
@@ -31,6 +33,7 @@ claude plugin test .
 2. List it in `hooks/actions/index.ts`.
 3. Pick it in `hooks/clawd.ts`: in `actionFor` for a state, or in `CLICK` for
    the reaction a click plays during an action (with its length in `EVENT_TICKS`).
+   A new activity also needs its tools in `activityOf` and an entry in `CLICK`.
 
 The tests check every listed action stays inside the band at any width.
 

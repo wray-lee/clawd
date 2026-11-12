@@ -20,17 +20,21 @@ English | [简体中文](README.zh-CN.md) | [日本語](README.ja.md)
 ## Features
 
 - **Acts out the work.** Clawd walks while Claude thinks, types at a shell
-  command, scans with its eyes while reading, and hammers while editing.
+  command, scans with its eyes while reading, holds up a magnifying glass to
+  search, hammers while editing, casts a spell for a skill, and raises an
+  antenna for an MCP call.
 - **A helper per subagent.** Each running subagent, workflow agents included,
   gets a small Clawd in its own color. A subagent's own subagents are smaller
-  still. Each helper leaves when its agent finishes.
+  still. A workflow's agents wear a purple top hat. Each helper leaves when
+  its agent finishes.
 - **Reacts to you.** Clawd types along with you in the prompt and holds up the
-  last key. Click it and it reacts to what it is doing.
+  last key. Click it and it reacts to what it is doing. A click never selects
+  Clawd's text, so it is never highlighted or copied.
 - **Moods.** Clawd celebrates a finished turn, startles when a tool fails, and
   naps after two quiet minutes.
-- **Fits any theme.** Clawd uses the welcome screen's own theme color, and the
-  helpers use theme colors too. Every glyph is one column wide, so CJK
-  terminals stay aligned.
+- **Colorful.** Clawd keeps the welcome screen's own theme orange. Helpers
+  come in 12 colors, and confetti, sparkles, `z`'s, signals and smoke each have their
+  own. Every glyph is one column wide, so CJK terminals stay aligned.
 
 ## Install
 
@@ -51,30 +55,53 @@ Restart Claude Code to load it. `/clawd` hides or shows the band.
 
 ## What Clawd does
 
+<img src="docs/assets/actions.gif" alt="Clawd plays each of its actions in turn: walking, typing, reading, searching, editing, casting a spell, MCP waves, typing along, celebrating, oops and napping" width="560">
+
 | When | Clawd |
 | --- | --- |
 | Claude is thinking | walks back and forth |
 | a shell command runs | types, `>_` above |
-| Claude reads or searches | eyes scan, `...` above |
+| Claude reads a file or a page | eyes scan, `...` above |
+| Claude searches (Grep, Glob, web search) | holds a magnifying glass out to each side, `?` |
 | Claude edits files | hammers, sparks fly |
-| a turn finishes | happy eyes, hops, sparkles |
+| Claude uses a skill | arms up, two comets of sparks circle its head |
+| Claude calls an MCP tool | an antenna on its head sends out `( ( \| ) )` |
+| a turn finishes | happy eyes, hops, confetti falls |
 | a tool fails | `!` and a shake |
 | nothing happens | blinks, glances, hops |
 | about 2 minutes pass | sleeps with `z Z`, wakes when you type |
 | you type in the prompt | types along, holds up your last key |
 
+Each tool's action plays for at least 1.5 seconds, so a quick search or skill
+is seen and not just a flicker.
+
+<img src="docs/assets/actions.png" alt="One frame of each action, labeled" width="100%">
+
 ### Helpers for subagents
+
+<img src="docs/assets/workflow.gif" alt="A plain subagent's helper beside three workflow agents' helpers in purple top hats, hopping, then leaving as each agent finishes" width="100%">
 
 <img src="docs/assets/helpers.png" alt="Four helper Clawds in different colors beside Clawd, and a smaller one for a nested subagent" width="100%">
 
 - Each subagent gets a 5-column helper, and a subagent's own subagent gets a
   3-column one. Three levels down and deeper, a helper is a single pixel.
   Each nested helper stands right after its parent.
-- Each helper's color is picked at random from a palette of theme colors
-  (`hooks/palette.ts`). No two helpers on screen share a color until the
-  palette runs out.
-- Helpers line up on the side of Clawd that has room. When the band is full,
-  the rest show as `+N`.
+- Each helper's color is picked at random from a palette of 12 colors
+  (`hooks/palette.ts`). They are xterm-256 colors, so they stay distinct in a
+  256-color terminal too. No two helpers on screen share a color until all 12
+  are taken.
+- Agents started by a workflow wear a top hat in the purple of the
+  `ultracode` label, so you can tell them from plain subagents. No helper's
+  body is ever that purple.
+- Helpers line up on the side of Clawd that has room. At most 8 full or
+  small helpers are drawn; single-pixel ones don't count toward that and show
+  as long as there is room. The rest are counted under the `[-]` in two
+  narrow columns, plain subagents and then a workflow's agents: `+N` (in hat
+  purple for the workflow's) with a pixel in each one's color below it.
+  Helpers keep clear of Clawd's effects, so a hammer or confetti is never
+  covered.
+
+<img src="docs/assets/crowd.png" alt="Eight helper Clawds beside Clawd; under the [-], a +4 column with colored pixels for subagents and a purple +2 column for workflow agents" width="100%">
 - A helper leaves when the engine reports its agent as completed, failed or
   killed. A subagent that is still waiting on background work keeps its helper.
 
@@ -89,12 +116,16 @@ Restart Claude Code to load it. `/clawd` hides or shows the band.
 | reading | looks up at you, `o.o` |
 | editing | bonks its own head with the hammer |
 | celebrating | gives a high five |
+| searching | found it! Glass held high, `!` |
+| using a skill | the spell goes poof in a puff of smoke |
+| on an MCP call | the line crackles with static |
 
 > [!NOTE]
 > Clicks need the fullscreen layout, where the terminal reports the mouse. In
-> tmux, set `CLAUDE_CODE_NO_FLICKER=1`.
+> tmux, set `CLAUDE_CODE_NO_FLICKER=1`. The band is drawn in a region of its
+> own, so pressing on it never starts a text selection.
 
-<img src="docs/assets/celebrate.png" alt="Clawd celebrating a finished turn with happy eyes and sparkles" width="100%">
+<img src="docs/assets/celebrate.png" alt="Clawd hopping with happy eyes after a finished turn" width="100%">
 
 ## Requirements
 
