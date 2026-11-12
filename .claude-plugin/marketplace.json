@@ -1,0 +1,13 @@
+{
+  "name": "clawd",
+  "description": "Animated Clawd above the Claude Code prompt",
+  "owner": {
+    "name": "wray-lee"
+  },
+  "plugins": [
+    {
+      "name": "clawd",
+      "source": "./"
+    }
+  ]
+}
