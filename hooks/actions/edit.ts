@@ -11,9 +11,9 @@ export const edit: Action = ({ t, x, columns }) => {
   const fx: Fx[] = right
     ? hit
       ? [[2, 9, '▄▄', WOOD], [2, 11, '█▌', HEAD], [3, 11, '▀▘', HEAD], [2, 13, '*']]
-      : [[1, 9, '▄▄', HEAD], [2, 9, '▌', WOOD]]
+      : [[1, 9, '▄▄', HEAD], [2, 9, '▐▌', WOOD]] // the handle under the head's middle
     : hit
       ? [[2, -2, '▄▄', WOOD], [2, -4, '▐█', HEAD], [3, -4, '▝▀', HEAD], [2, -5, '*']]
-      : [[1, -2, '▄▄', HEAD], [2, -1, '▐', WOOD]]
+      : [[1, -2, '▄▄', HEAD], [2, -2, '▐▌', WOOD]]
   return { arms: hit ? ARMS_DOWN : ARMS_UP, fx }
 }

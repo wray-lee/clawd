@@ -9,13 +9,13 @@ import { ARMS_DOWN, BLINK, HEAD, LEGS_A, MINI_BLINK, MINI_BODY, MINI_HAT, MINI_H
 export { W }
 export const ROWS = 4
 
-const SLEEP_AFTER = 1200 // ticks idle (~2 min at 100ms) before a nap
+const SLEEP_AFTER = 6000 // ticks idle (10 min at 100ms) before a nap
 
 // What Claude is doing right now, from the running tool; null between turns.
-export type Activity = 'think' | 'shell' | 'read' | 'search' | 'edit' | 'skill' | 'mcp'
+export type Activity = 'think' | 'shell' | 'read' | 'fetch' | 'search' | 'edit' | 'skill' | 'mcp' | 'compact' | 'todo' | 'plan'
 // Short reactions that play over everything else: to the session, then to a click.
 const EVENT_TICKS = {
-  celebrate: 20, oops: 10, wake: 8,
+  celebrate: 20, oops: 10, wake: 8, hello: 16, shrug: 12, sad: 16,
   pet: 12, spin: 10, shoo: 10, peek: 10, bonk: 10, highfive: 12, found: 12, poof: 10, zap: 10,
 } satisfies Partial<Record<ActionName, number>>
 export type EventKind = keyof typeof EVENT_TICKS
@@ -24,7 +24,7 @@ export type EventKind = keyof typeof EVENT_TICKS
 const CLICK: Partial<Record<ActionName, EventKind>> = {
   sleep: 'wake', idle: 'pet', echo: 'pet',
   walk: 'spin', shell: 'shoo', read: 'peek', edit: 'bonk', celebrate: 'highfive',
-  search: 'found', skill: 'poof', mcp: 'zap',
+  search: 'found', skill: 'poof', mcp: 'zap', fetch: 'peek', compact: 'shoo', todo: 'peek', plan: 'peek',
 }
 
 const TYPING_TICKS = 15 // Clawd types along until 1.5s after your last key
@@ -89,9 +89,12 @@ export function typed(s: Scene, text: string): Scene {
 export function activityOf(tool: string): Activity {
   if (/^(Bash|BashOutput|KillShell|PowerShell)$/.test(tool)) return 'shell'
   if (/^(Grep|Glob|WebSearch|ToolSearch)$/.test(tool)) return 'search'
-  if (/^(Read|LS|WebFetch)$/.test(tool)) return 'read'
+  if (/^(Read|LS)$/.test(tool)) return 'read'
+  if (tool === 'WebFetch') return 'fetch'
   if (/^(Edit|MultiEdit|Write|NotebookEdit)$/.test(tool)) return 'edit'
   if (tool === 'Skill') return 'skill'
+  if (/^(TodoWrite|TaskCreate|TaskUpdate|TaskList|TaskGet)$/.test(tool)) return 'todo'
+  if (/^(EnterPlanMode|ExitPlanMode)$/.test(tool)) return 'plan'
   if (tool.startsWith('mcp__')) return 'mcp'
   return 'think'
 }
@@ -101,9 +104,11 @@ export function activityOf(tool: string): Activity {
 export const HOLD = 15
 export type Recent = { activity: Activity; until: number } | null
 
-// What Clawd acts out now: the newest running tool, else the last tool while
-// its hold lasts, else thinking while Claude works.
-export function activityNow(running: readonly string[], recent: Recent, t: number, isWorking: boolean): Activity | null {
+// What Clawd acts out now: compacting while the conversation compacts, else
+// the newest running tool, else the last tool while its hold lasts, else
+// thinking while Claude works.
+export function activityNow(running: readonly string[], recent: Recent, t: number, isWorking: boolean, isCompacting = false): Activity | null {
+  if (isCompacting) return 'compact'
   const tool = running[running.length - 1]
   if (tool) return activityOf(tool)
   if (recent && t < recent.until) return recent.activity
@@ -111,7 +116,7 @@ export function activityNow(running: readonly string[], recent: Recent, t: numbe
 }
 
 const ACTIVITY_ACTION: Record<Activity, ActionName> = {
-  think: 'walk', shell: 'shell', read: 'read', search: 'search', edit: 'edit', skill: 'skill', mcp: 'mcp',
+  think: 'walk', shell: 'shell', read: 'read', fetch: 'fetch', search: 'search', edit: 'edit', skill: 'skill', mcp: 'mcp', compact: 'compact', todo: 'todo', plan: 'plan',
 }
 
 export function actionFor(s: Scene, activity: Activity | null): ActionName {

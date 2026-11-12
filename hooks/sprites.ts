@@ -8,6 +8,7 @@ export const BLINK = ' ▐█████▌ '
 export const LOOK_L = ' ▐▜██▜█▌ '
 export const LOOK_R = ' ▐█▛██▛▌ '
 export const HAPPY = ' ▐▟███▙▌ ' // ^ ^ eyes
+export const DOWN = ' ▐▀███▀▌ ' // eyes cast down
 
 export const ARMS_DOWN = '▝▜█████▛▘'
 export const ARMS_UP = '▗▜█████▛▖'

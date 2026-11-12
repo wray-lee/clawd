@@ -31,7 +31,9 @@ export const register: Register = on => {
   // Subagents running now, workflow agents included: one helper Clawd each.
   const helpers = new Map<string, Helper>()
   let recent: Recent = null // the last tool started, held on screen a moment
-  const activity = (isWorking: boolean): Activity | null => activityNow(running, recent, scene.t, isWorking)
+  let greet = false // say hi the first time the band shows, if a person is there
+  let compacting = 0 // compactions of the main conversation running now
+  const activity = (isWorking: boolean): Activity | null => activityNow(running, recent, scene.t, isWorking, compacting > 0)
 
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'clawd', description: 'Show or hide Clawd above the prompt' })
@@ -45,6 +47,7 @@ export const register: Register = on => {
       if (key !== drawnKey) $.ui.invalidate('ui.render')
     })
 
+    greet = e.isInteractive
     return next(e)
   })
 
@@ -71,6 +74,18 @@ export const register: Register = on => {
     }
   })
 
+  // The main conversation compacting (not a subagent's, nor one ahead of time).
+  on('session.compact', async ($, e, next) => {
+    if (e.agentId || e.trigger === 'precompute') return next(e)
+    compacting++
+    $.ui.invalidate('ui.render')
+    try {
+      return await next(e)
+    } finally {
+      compacting--
+    }
+  })
+
   on('agent.spawn', async ($, e, next) => {
     const result = await next(e)
     if ('agentId' in result && result.agentId) {
@@ -90,7 +105,9 @@ export const register: Register = on => {
   on('turn.complete', async ($, e, next) => {
     if (e.agentId && helpers.has(e.agentId)) await settle($, helpers, e.agentId)
     // The main thread's answers only: not a subagent's, an abort or an error.
-    if (!e.agentId && e.reason === 'answer') scene = react(scene, 'celebrate')
+    // The main thread's turn: celebrate an answer, shrug at an interrupt, and
+    // look sad at an error or a refusal.
+    if (!e.agentId) scene = react(scene, e.reason === 'answer' ? 'celebrate' : e.reason === 'aborted' ? 'shrug' : 'sad')
     return next(e)
   })
 
@@ -118,6 +135,10 @@ export const register: Register = on => {
       return next(e)
     }
     shown = { columns, isWorking: e.props.isWorking }
+    if (greet) {
+      greet = false
+      scene = react(scene, 'hello')
+    }
     drawn = frame(scene, activity(shown.isWorking), columns, [...helpers.values()])
     drawnKey = JSON.stringify(drawn)
     const { Client } = $.ui.resolve(e)

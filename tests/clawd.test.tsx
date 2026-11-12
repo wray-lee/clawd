@@ -1,6 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import { actions, type ActionName } from '../hooks/actions'
+import { FIDGET_COUNT, fidgetAt } from '../hooks/actions/idle'
 import { HOLD, actionFor, activityNow, activityOf, drawHelpers, frame, lineUp, poke, react, start, step, typed, W, type Activity, type EventKind, type Helper, type Row } from '../hooks/clawd'
 import { HAT, PALETTE, pick } from '../hooks/palette'
 
@@ -39,8 +40,18 @@ test('thinking walks and turns at the edge; tools stand still', async () => {
   expect(play('shell', 50, 20, s).x).toBe(s.x)
 })
 
+test('idle, Clawd fidgets every 8s, a different one each time, and naps after 10 minutes', async () => {
+  const fidgets = Array.from({ length: 100 }, (_, n) => fidgetAt(n))
+  expect(new Set(fidgets).size).toBe(FIDGET_COUNT) // every fidget turns up
+  fidgets.slice(1).forEach((f, n) => expect(f).not.toBe(fidgets[n]))
+  // Between fidgets it stands as the welcome screen draws it.
+  expect(glyphs(frame({ ...start(), t: 50 }, null, 40))[1]).toContain('▐▛███▜▌')
+  expect(actionFor(play(null, 5990), null)).toBe('idle')
+  expect(actionFor(play(null, 6010), null)).toBe('sleep')
+})
+
 test('idle long enough means asleep with z, on the side that has room', async () => {
-  const s = { ...play(null, 1300, 30), t: 18 }
+  const s = { ...play(null, 6100, 30), t: 18 }
   expect(actionFor(s, null)).toBe('sleep')
   const rows = glyphs(frame(s, null, 30))
   expect(rows[1]).toContain('▐█████▌') // eyes closed
@@ -59,6 +70,11 @@ test('each tool picks its action, and events play over it', async () => {
   expect(actionFor(start(), activityOf('Read'))).toBe('read')
   expect(actionFor(start(), activityOf('Grep'))).toBe('search')
   expect(actionFor(start(), activityOf('WebSearch'))).toBe('search')
+  expect(actionFor(start(), activityOf('WebFetch'))).toBe('fetch')
+  expect(actionFor(start(), activityOf('TodoWrite'))).toBe('todo')
+  expect(actionFor(start(), activityOf('TaskUpdate'))).toBe('todo')
+  expect(actionFor(start(), activityOf('EnterPlanMode'))).toBe('plan')
+  expect(activityNow(['Bash'], null, 0, true, true)).toBe('compact') // compacting comes first
   expect(actionFor(start(), activityOf('Edit'))).toBe('edit')
   expect(actionFor(start(), activityOf('Skill'))).toBe('skill')
   expect(actionFor(start(), activityOf('mcp__github__search_issues'))).toBe('mcp')
@@ -74,12 +90,12 @@ test('each tool picks its action, and events play over it', async () => {
   expect(actionFor(play('shell', 20, 40, s), 'shell')).toBe('shell') // over after 2s
 })
 
-const EVENTS = { celebrate: 1, oops: 1, wake: 1, pet: 1, spin: 1, shoo: 1, peek: 1, bonk: 1, highfive: 1, found: 1, poof: 1, zap: 1 }
+const EVENTS = { celebrate: 1, oops: 1, wake: 1, pet: 1, spin: 1, shoo: 1, peek: 1, bonk: 1, highfive: 1, found: 1, poof: 1, zap: 1, hello: 1, shrug: 1, sad: 1 }
 
 test('a click plays the reaction for what Clawd is doing', async () => {
   const clicked = (s: ReturnType<typeof start>, a: Activity | null) => poke(s, a).event?.kind
   expect(clicked(start(), null)).toBe('pet')
-  expect(clicked(play(null, 1300), null)).toBe('wake')
+  expect(clicked(play(null, 6100), null)).toBe('wake')
   expect(clicked(start(), 'think')).toBe('spin')
   expect(clicked(start(), 'shell')).toBe('shoo')
   expect(clicked(start(), 'read')).toBe('peek')
@@ -87,6 +103,10 @@ test('a click plays the reaction for what Clawd is doing', async () => {
   expect(clicked(start(), 'search')).toBe('found')
   expect(clicked(start(), 'skill')).toBe('poof')
   expect(clicked(start(), 'mcp')).toBe('zap')
+  expect(clicked(start(), 'fetch')).toBe('peek')
+  expect(clicked(start(), 'compact')).toBe('shoo')
+  expect(clicked(start(), 'todo')).toBe('peek')
+  expect(clicked(start(), 'plan')).toBe('peek')
   expect(clicked(react(start(), 'celebrate'), null)).toBe('highfive')
   expect(clicked(react(start(), 'oops'), null)).toBe('oops') // a startle is not cut short
   // A spin turns Clawd around.
@@ -103,7 +123,7 @@ test('typing makes Clawd type along, holding up the last key', async () => {
   // 1.5s after the last key it goes back to idling.
   expect(actionFor(play(null, 15, 40, s), null)).toBe('idle')
   // Typing wakes a sleeping Clawd.
-  expect(typed(play(null, 1300), 'a').event?.kind).toBe('wake')
+  expect(typed(play(null, 6100), 'a').event?.kind).toBe('wake')
 })
 
 test('the hammer swings on the side that has room', async () => {
@@ -144,7 +164,7 @@ const cells = (rows: Row[]) => rows.map(r => r.flatMap(seg => [...seg.text].map(
 
 test('helpers and the corner label never cover Clawd or its effects', () => {
   const crowd = Array.from({ length: 12 }, (_, i) => ({ ...helper(`h${i}`, i % 4 === 3 ? 2 : 1), isWorkflow: i % 2 === 0 }))
-  const ACTIVITIES: (Activity | null)[] = ['think', 'shell', 'read', 'search', 'edit', 'skill', 'mcp', null]
+  const ACTIVITIES: (Activity | null)[] = ['think', 'shell', 'read', 'fetch', 'search', 'edit', 'skill', 'mcp', 'compact', 'todo', 'plan', null]
   for (const columns of [30, 60, 120]) for (const x of [0, 6, columns - W]) for (const a of ACTIVITIES) for (const party of [false, true]) {
     for (let t = 0; t < 40; t++) {
       const s = { ...(party ? react(start(), 'celebrate') : start()), x, t }
@@ -218,7 +238,8 @@ test('the band draws Clawd in the theme orange and hides on /clawd', async ($, o
   // Listed as running, as a workflow agent is not: a turn's end alone keeps it.
   let listed = [{ id: 'sub1', status: 'running' as const, description: 'd', type: 'Explore' }]
   on('agent.list', () => ({ value: listed }))
-  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  // Not interactive, so Clawd skips its hello and starts out idle.
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: false })
 
   const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
   const texts = await ui.findAll({ type: 'Text', text: /▐▛███▜▌|▐█████▌/, in: 'clawd' })
