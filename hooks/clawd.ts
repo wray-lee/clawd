@@ -11,9 +11,20 @@ const SLEEP_AFTER = 1200 // ticks idle (~2 min at 100ms) before a nap
 
 // What Claude is doing right now, from the running tool; null between turns.
 export type Activity = 'think' | 'shell' | 'read' | 'edit'
-// Short reactions that play over everything else.
-export type EventKind = 'celebrate' | 'oops' | 'wake'
-const EVENT_TICKS: Record<EventKind, number> = { celebrate: 20, oops: 10, wake: 8 }
+// Short reactions that play over everything else: to the session, then to a click.
+const EVENT_TICKS = {
+  celebrate: 20, oops: 10, wake: 8,
+  pet: 12, spin: 10, shoo: 10, peek: 10, bonk: 10, highfive: 12,
+} satisfies Partial<Record<ActionName, number>>
+export type EventKind = keyof typeof EVENT_TICKS
+
+// A click plays the reaction that fits what Clawd is doing.
+const CLICK: Partial<Record<ActionName, EventKind>> = {
+  sleep: 'wake', idle: 'pet', echo: 'pet',
+  walk: 'spin', shell: 'shoo', read: 'peek', edit: 'bonk', celebrate: 'highfive',
+}
+
+const TYPING_TICKS = 15 // Clawd types along until 1.5s after your last key
 
 export type Scene = {
   t: number
@@ -21,6 +32,7 @@ export type Scene = {
   dir: 1 | -1
   idle: number // ticks since Claude last worked
   event: { kind: EventKind; until: number } | null
+  typing: { keys: number; char: string; until: number } | null
 }
 
 export type Tone = 'body' | 'fx' | 'none'
@@ -28,15 +40,30 @@ export type Segment = { text: string; tone: Tone }
 export type Row = Segment[]
 
 // Starts at the right edge: frame and step clamp x to the band's width.
-export const start = (): Scene => ({ t: 0, x: Number.MAX_SAFE_INTEGER, dir: -1, idle: 0, event: null })
+export const start = (): Scene => ({ t: 0, x: Number.MAX_SAFE_INTEGER, dir: -1, idle: 0, event: null, typing: null })
 
 export const isAsleep = (s: Scene, activity: Activity | null) => activity === null && s.idle >= SLEEP_AFTER
 
 export const react = (s: Scene, kind: EventKind): Scene => ({
   ...s,
   idle: 0,
+  dir: kind === 'spin' ? (s.dir === 1 ? -1 : 1) : s.dir,
   event: { kind, until: s.t + EVENT_TICKS[kind] },
 })
+
+// A click on Clawd: the reaction for what it is doing now; nothing over a
+// reaction to the session that is still playing (oops, wake).
+export function poke(s: Scene, activity: Activity | null): Scene {
+  const kind = CLICK[actionFor(s, activity)]
+  return kind ? react(s, kind) : s
+}
+
+// The person typed `text` into the prompt; a sleeping Clawd wakes first.
+export function typed(s: Scene, text: string): Scene {
+  const woken = isAsleep(s, null) ? react(s, 'wake') : s
+  const keys = (s.typing?.keys ?? 0) + 1
+  return { ...woken, idle: 0, typing: { keys, char: [...text].pop() ?? '', until: s.t + TYPING_TICKS } }
+}
 
 export function activityOf(tool: string): Activity {
   if (/^(Bash|BashOutput|KillShell|PowerShell)$/.test(tool)) return 'shell'
@@ -49,6 +76,7 @@ const ACTIVITY_ACTION: Record<Activity, ActionName> = { think: 'walk', shell: 's
 
 export function actionFor(s: Scene, activity: Activity | null): ActionName {
   if (s.event) return s.event.kind
+  if (s.typing) return 'echo'
   if (activity) return ACTIVITY_ACTION[activity]
   return isAsleep(s, activity) ? 'sleep' : 'idle'
 }
@@ -58,14 +86,16 @@ export function step(s: Scene, activity: Activity | null, columns: number): Scen
   const t = s.t + 1
   const max = Math.max(0, columns - W)
   const event = s.event && t < s.event.until ? s.event : null
+  const typing = s.typing && t < s.typing.until ? s.typing : null
   let { dir } = s
   let x = Math.min(s.x, max)
   // Only walks while thinking; at a tool it stops to work.
-  if (activity === 'think' && !event && t % 2 === 0) {
+  if (activity === 'think' && !event && !typing && t % 2 === 0) {
     if (x + dir < 0 || x + dir > max) dir = dir === 1 ? -1 : 1
     x = Math.min(max, Math.max(0, x + dir))
   }
-  return { t, x, dir, idle: activity === null && !event ? s.idle + 1 : 0, event }
+  const isQuiet = activity === null && !event && !typing
+  return { t, x, dir, idle: isQuiet ? s.idle + 1 : 0, event, typing }
 }
 
 export function frame(s: Scene, activity: Activity | null, columns: number): Row[] {
@@ -81,7 +111,7 @@ export function frame(s: Scene, activity: Activity | null, columns: number): Row
 
   const x0 = Math.min(s.x, Math.max(0, columns - W))
   const blink = s.t % 37 < 2 // a short blink every ~3.7s
-  const pose: Pose = actions[actionFor(s, activity)]({ t: s.t, x: x0, columns, blink })
+  const pose: Pose = actions[actionFor(s, activity)]({ t: s.t, x: x0, columns, blink, typed: s.typing })
   const x = Math.max(0, x0 + (pose.dx ?? 0))
   const top = pose.top ?? 1
 

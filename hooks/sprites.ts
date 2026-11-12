@@ -36,6 +36,7 @@ export type ActionCtx = {
   x: number // Clawd's left column
   columns: number // band width
   blink: boolean
+  typed: { keys: number; char: string } | null // the person's typing, while it lasts
 }
 
 export type Action = (c: ActionCtx) => Pose

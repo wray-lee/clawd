@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
-import { ROWS, activityOf, frame, isAsleep, react, start, step, type Activity } from './clawd'
+import { ROWS, activityOf, frame, isAsleep, poke, react, start, step, typed, type Activity } from './clawd'
 
 const isHidden = atom({ plugin: 'clawd', key: 'isHidden' } as const, false)
 
@@ -30,6 +30,12 @@ export const register: Register = on => {
 
   on('prompt.submit', ($, e, next) => {
     if (isAsleep(scene, null)) scene = react(scene, 'wake')
+    return next(e)
+  })
+
+  // Typing in the prompt: Clawd types along. Observes only; the edit goes on as made.
+  on('prompt.edit', ($, e, next) => {
+    if (e.inputText) scene = typed(scene, e.inputText)
     return next(e)
   })
 
@@ -63,24 +69,30 @@ export const register: Register = on => {
       return next(e)
     }
     shown = { columns, isWorking: e.props.isWorking }
-    const { Box, Text } = $.ui.resolve(e)
+    const { Box, Button, Text } = $.ui.resolve(e)
+    const isWorking = shown.isWorking
+    const onPress = () => {
+      scene = poke(scene, activity(isWorking))
+      $.ui.invalidate('ui.render')
+    }
 
     // `claude` is the theme key the welcome screen paints Clawd with, so it is
-    // the same orange in every theme and terminal.
+    // the same orange in every theme and terminal. Clawd's own cells are plain
+    // Buttons, so a click on it lands; the space around it is not.
     return (
       <Box flexDirection="column">
-        {frame(scene, activity(shown.isWorking), columns).map(row => (
-          <Text wrap="truncate">
-            {row.map(seg =>
+        {frame(scene, activity(isWorking), columns).map((row, r) => (
+          <Box flexDirection="row">
+            {row.map((seg, i) =>
               seg.tone === 'body' ? (
-                <Text color="claude">{seg.text}</Text>
-              ) : seg.tone === 'fx' ? (
-                <Text dimColor>{seg.text}</Text>
+                <Button key={`clawd-${r}-${i}`} plain onPress={onPress}>
+                  <Text color="claude">{seg.text}</Text>
+                </Button>
               ) : (
-                seg.text
+                <Text dimColor={seg.tone === 'fx'}>{seg.text}</Text>
               ),
             )}
-          </Text>
+          </Box>
         ))}
       </Box>
     )
