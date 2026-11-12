@@ -13,7 +13,6 @@ All notable changes to this project are documented here. The format follows
   compacts.
 - New moods: Clawd says hi when a session starts, shrugs when you interrupt
   a turn, and looks sad when a turn ends in an error or a refusal.
-
 - Idle, Clawd plays one of 14 fidgets at random every 8 seconds: it hops,
   waves, stretches, looks around, dances, hums, yawns, sneezes, shows a heart,
   juggles, crouches and jumps, stargazes, cheers, or nods off and snaps awake.
