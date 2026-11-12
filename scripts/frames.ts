@@ -36,6 +36,7 @@ const SHOTS: Shot[] = [
   { label: 'session start: says hi', activity: null, event: 'hello', ticks: 16, pick: 1 },
   { label: 'idle: dances', activity: null, ticks: 20, pick: 6, t0: fidget(4) },
   { label: 'idle: yawns', activity: null, ticks: 20, pick: 4, t0: fidget(6) },
+  { label: 'idle: a heart', activity: null, ticks: 20, pick: 10, t0: fidget(8) },
   { label: 'idle 10 min: naps', activity: null, ticks: 24, pick: 15, asleep: true },
 ]
 const picks: string[] = []

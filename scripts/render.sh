@@ -23,7 +23,9 @@ for i in $(seq 0 31); do
   for r in "${ranges[@]}"; do cells+=("$tmp/png/$(printf %04d $(( ${r%%:*} + i % ${r##*:} ))).png"); done
   magick montage "${cells[@]}" -tile 3x -geometry 444x182+4+4 -background '#161616' "$tmp/grid/$(printf %03d "$i").png"
 done
-magick -delay 10 -loop 0 "$tmp"/grid/*.png -colors 64 -layers Optimize "$assets/actions.gif"
+# One palette for every frame, and no dithering, so the background holds still.
+magick "$tmp"/grid/*.png -append +dither -colors 64 -unique-colors "$tmp/palette.png"
+magick -delay 10 -loop 0 "$tmp"/grid/*.png +dither -remap "$tmp/palette.png" -layers Optimize "$assets/actions.gif"
 
 read -ra picks < "$tmp/frames/picks.txt" || true
 cells=(); for p in "${picks[@]}"; do cells+=("$tmp/png/$p.png"); done
