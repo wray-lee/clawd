@@ -4,8 +4,9 @@
 // hooks module with its cell, which decides what it hit.
 import type { ClientModule } from 'claude-code'
 
-// One run of cells: its text, and its color (absent: blank cells).
-export type Run = { text: string; color?: string }
+// One run of cells: its text, its color (absent: blank cells), and the color
+// behind it (Claude-chan's lower pixels).
+export type Run = { text: string; color?: string; bg?: string }
 export type ViewProps = { rows: Run[][] }
 
 const ClawdView: ClientModule<ViewProps> = (props, surface) => {
@@ -19,8 +20,8 @@ const ClawdView: ClientModule<ViewProps> = (props, surface) => {
       Box({
         flexDirection: 'row',
         height: 1,
-        children: runs.map(({ text, color }) =>
-          color ? Text({ children: [text], color }) : Box({ width: text.length, height: 1, flexShrink: 0 }),
+        children: runs.map(({ text, color, bg }) =>
+          color ? Text({ children: [text], color, ...(bg && { backgroundColor: bg }) }) : Box({ width: text.length, height: 1, flexShrink: 0 }),
         ),
       }),
     ),

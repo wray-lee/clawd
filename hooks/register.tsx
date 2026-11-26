@@ -1,8 +1,11 @@
 import { atom, read, update } from 'claude-code'
 import type { Hook, Register } from 'claude-code'
 
-import { HOLD, ROWS, activityNow, activityOf, frame, isAsleep, poke, react, runsOf, start, step, toneAt, typed, type Activity, type Helper, type Recent, type Row } from './clawd'
+import { MORPH_TICKS, chanFrame, sizeFor } from './chan'
+import { HOLD, ROWS, W, activityNow, activityOf, frame, isAsleep, poke, react, runsOf, start, step, tap, toneAt, typed, type Activity, type Helper, type Recent, type Row } from './clawd'
 import { pick } from './palette'
+
+const NO_ROOM = 'Claude-chan needs 12 free rows above the prompt: make the window taller.'
 
 const isHidden = atom({ plugin: 'clawd', key: 'isHidden' } as const, false)
 
@@ -23,7 +26,9 @@ async function settle($: Parameters<Hook<'turn.complete'>>[0], helpers: Map<stri
 export const register: Register = on => {
   let scene = start()
   // What the last render showed; the timer only ticks while Clawd is on screen.
-  let shown: { columns: number; isWorking: boolean } | null = null
+  let shown: { columns: number; isWorking: boolean; maxRows: number } | null = null
+  // Claude-chan in Clawd's place, the easter egg; kept in $.store across sessions.
+  let isChan = false
   let drawn: Row[] = [] // the last frame, to tell what a click hit
   let drawnKey = '' // and as text, to tell whether a tick changed it
   // Tools running now, newest last: the newest picks Clawd's activity.
@@ -34,16 +39,28 @@ export const register: Register = on => {
   let greet = false // say hi the first time the band shows, if a person is there
   let compacting = 0 // compactions of the main conversation running now
   const activity = (isWorking: boolean): Activity | null => activityNow(running, recent, scene.t, isWorking, compacting > 0)
+  // Claude-chan (or the switch to or from her) at the biggest size that fits, else Clawd.
+  const chanSize = (s: NonNullable<typeof shown>) => (isChan || scene.morph ? sizeFor(s.maxRows) : undefined)
+  const draw = (s: NonNullable<typeof shown>) => {
+    const size = chanSize(s)
+    const now = activity(s.isWorking)
+    return size ? chanFrame(scene, now, s.columns, [...helpers.values()], size) : frame(scene, now, s.columns, [...helpers.values()])
+  }
 
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'clawd', description: 'Show or hide Clawd above the prompt' })
+    await $.command.register({
+      name: 'clawd',
+      description: 'Show or hide Clawd above the prompt; with chan, switch to Claude-chan and back',
+      argumentHint: '[chan]',
+    })
+    isChan = (await $.store.get('isChan')) === true
     $.clock.every(100, async () => {
       // Once a second, drop helpers whose subagent the engine lists as over.
       if (scene.t % 10 === 0 && helpers.size) await settle($, helpers)
       if (!shown) return
-      scene = step(scene, activity(shown.isWorking), shown.columns)
+      scene = step(scene, activity(shown.isWorking), shown.columns, chanSize(shown)?.w ?? W)
       // Redraw only when the frame changed: idle, most ticks look the same.
-      const key = JSON.stringify(frame(scene, activity(shown.isWorking), shown.columns, [...helpers.values()]))
+      const key = JSON.stringify(draw(shown))
       if (key !== drawnKey) $.ui.invalidate('ui.render')
     })
 
@@ -112,17 +129,37 @@ export const register: Register = on => {
   })
 
   // A click in the band, from ./view.ts: only one on Clawd's own body counts.
-  on('ui.message', ($, e, next) => {
+  on('ui.message', async ($, e, next) => {
     if (e.element !== 'clawd') return next(e)
     const { x, y } = (e.data ?? {}) as { x?: number; y?: number }
     if (shown && typeof x === 'number' && typeof y === 'number' && toneAt(drawn, x, y) === 'body') {
-      scene = poke(scene, activity(shown.isWorking))
+      const { scene: tapped, isEgg } = tap(poke(scene, activity(shown.isWorking)))
+      scene = tapped
+      if (isEgg) {
+        // Too few rows for even her small size: say so, or the clicks look ignored.
+        if (!swap()) $.ui.toast(NO_ROOM)
+        await $.store.set('isChan', isChan)
+      }
       $.ui.invalidate('ui.render')
     }
     return {}
   })
 
-  on('command.run', { command: 'clawd' }, async $ => {
+  // Clawd to Claude-chan or back, through the puff of smoke; the caller keeps
+  // the choice in $.store. False when she is coming and has no room to show.
+  const swap = () => {
+    isChan = !isChan
+    scene = { ...scene, morph: { until: scene.t + MORPH_TICKS, toChan: isChan } }
+    return !isChan || !shown || !!chanSize(shown)
+  }
+
+  on('command.run', { command: 'clawd' }, async ($, e) => {
+    if (e.args.trim() === 'chan') {
+      const fits = swap()
+      await $.store.set('isChan', isChan)
+      $.ui.invalidate('ui.render')
+      return { text: !isChan ? 'Clawd is back.' : fits ? 'Claude-chan is here.' : NO_ROOM }
+    }
     const hidden = await update($, isHidden, v => !v)
 
     return { text: hidden ? 'Clawd is hiding.' : 'Clawd is back.' }
@@ -134,17 +171,17 @@ export const register: Register = on => {
       shown = null
       return next(e)
     }
-    shown = { columns, isWorking: e.props.isWorking }
+    shown = { columns, isWorking: e.props.isWorking, maxRows: e.props.maxRows }
     if (greet) {
       greet = false
       scene = react(scene, 'hello')
     }
-    drawn = frame(scene, activity(shown.isWorking), columns, [...helpers.values()])
+    drawn = draw(shown)
     drawnKey = JSON.stringify(drawn)
     const { Client } = $.ui.resolve(e)
 
     // Drawn by ./view.ts in a region of its own: a press there can't select
     // Clawd's text, and a click comes back as a ui.message.
-    return <Client key="clawd" module="./view.ts" props={{ rows: drawn.map(runsOf) }} width={columns} height={ROWS} />
+    return <Client key="clawd" module="./view.ts" props={{ rows: drawn.map(runsOf) }} width={columns} height={drawn.length} />
   })
 }

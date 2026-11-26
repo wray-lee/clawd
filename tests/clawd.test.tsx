@@ -1,8 +1,11 @@
+import type { AgentInfo } from 'claude-code'
 import { expect, test } from 'claude-code/testing'
 
 import { actions, type ActionName } from '../hooks/actions'
 import { FIDGET_COUNT, fidgetAt } from '../hooks/actions/idle'
-import { HOLD, actionFor, activityNow, activityOf, drawHelpers, frame, lineUp, poke, react, start, step, typed, W, type Activity, type EventKind, type Helper, type Row } from '../hooks/clawd'
+import { MORPH_TICKS, chanFrame, pixels, poseAt, sizeFor } from '../hooks/chan'
+import { CHAN_KEY, CHAN_PAL, CHAN_SIZES } from '../hooks/chan-sprites'
+import { HOLD, TAPS, tap, actionFor, activityNow, activityOf, drawHelpers, frame, lineUp, poke, react, start, step, typed, W, type Activity, type EventKind, type Helper, type Row, type Scene } from '../hooks/clawd'
 import { HAT, PALETTE, pick } from '../hooks/palette'
 
 const BAND = {
@@ -11,6 +14,7 @@ const BAND = {
   requestId: 'above-prompt',
   props: {
     hasSurvey: false,
+    isCollapsed: false,
     isWorking: false,
     maxRows: 20,
     bodyColumns: 40,
@@ -19,6 +23,9 @@ const BAND = {
   },
 } as const
 
+const [BIG, SMALL] = CHAN_SIZES
+const CHAN_ROWS = BIG.rows
+const CHAN_W = BIG.w
 const glyphs = (rows: Row[]) => rows.map(r => r.map(seg => seg.text).join(''))
 const play = (activity: Activity | null, ticks: number, columns = 40, s = start()) => {
   for (let i = 0; i < ticks; i++) s = step(s, activity, columns)
@@ -236,7 +243,7 @@ test('the band draws Clawd in the theme orange and hides on /clawd', async ($, o
   on('turn.complete', () => ({ text: '' }))
   on('agent.spawn', () => ({ model: 'haiku', agentId: 'sub1' }))
   // Listed as running, as a workflow agent is not: a turn's end alone keeps it.
-  let listed = [{ id: 'sub1', status: 'running' as const, description: 'd', type: 'Explore' }]
+  let listed = [{ id: 'sub1', status: 'running' as const, description: 'd', type: 'Explore' }] as unknown as AgentInfo[]
   on('agent.list', () => ({ value: listed }))
   // Not interactive, so Clawd skips its hello and starts out idle.
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: false })
@@ -289,4 +296,212 @@ test('the band draws Clawd in the theme orange and hides on /clawd', async ($, o
   expect(await hidden.find({ type: 'Text', text: /▐/ })).toBe(undefined)
   expect((await hidden.find({ type: 'Text' }))?.text).toBe('engine')
   await hidden.unmount()
+})
+
+test('seven quick clicks make the easter egg; a pause starts the count over', () => {
+  let s = start()
+  for (let i = 1; i < TAPS; i++) {
+    const r = tap({ ...s, t: s.t + 3 })
+    expect(r.isEgg).toBe(false)
+    s = r.scene
+  }
+  expect(tap({ ...s, t: s.t + 3 }).isEgg).toBe(true)
+  const slow = tap({ ...s, t: s.t + 30 })
+  expect(slow.isEgg).toBe(false)
+  expect(slow.scene.taps).toBe(1)
+})
+
+test("Claude-chan's frames fit the contract, at each size", () => {
+  for (const size of CHAN_SIZES) {
+    expect(Object.keys(size.poses)).toEqual(Object.keys(BIG.poses))
+    for (const [name, frames] of Object.entries(size.poses)) {
+      expect(frames.length).toBe(BIG.poses[name as keyof typeof BIG.poses].length)
+      for (const rows of frames) {
+        expect(rows.length).toBe(size.rows * 2)
+        for (const row of rows) {
+          expect(row.length).toBe(size.w)
+          for (const ch of row) expect(ch === '.' || CHAN_KEY.indexOf(ch) < CHAN_PAL.length).toBe(true)
+        }
+      }
+    }
+  }
+})
+
+test('she is drawn at the biggest size that fits', () => {
+  expect(sizeFor(40)).toBe(BIG)
+  expect(sizeFor(16)).toBe(BIG)
+  expect(sizeFor(15)).toBe(SMALL)
+  expect(sizeFor(12)).toBe(SMALL)
+  expect(sizeFor(11)).toBe(undefined)
+  expect(chanFrame({ ...start(), t: 5 }, null, 60, [], SMALL).length).toBe(SMALL.rows)
+})
+
+test('Claude-chan stands in her rows, in her own colors, mirrored walking left', () => {
+  const rows = chanFrame({ ...start(), t: 5 }, null, 60)
+  expect(rows.length).toBe(CHAN_ROWS)
+  const body = rows.flat().filter(seg => seg.tone === 'body')
+  expect(body.length > 0).toBe(true)
+  expect(body.every(seg => (CHAN_PAL as readonly string[]).includes(seg.color!))).toBe(true)
+  const s = { ...start(), x: 10, t: 4 }
+  const right = pixels({ ...s, dir: 1 }, 'think')
+  expect(pixels({ ...s, dir: -1 }, 'think')).toEqual(right.map(r => [...r].reverse()))
+})
+
+test("beside Claude-chan a subagent is a whole Clawd, its own one a mini, a workflow's in a hat", () => {
+  const helpers: Helper[] = [
+    { id: 'a', depth: 1, color: PALETTE[0], isWorkflow: true },
+    { id: 'b', parent: 'a', depth: 2, color: PALETTE[1] },
+  ]
+  const text = glyphs(chanFrame({ ...start(), x: 80, t: 5 }, null, 80, helpers)).join('\n')
+  expect(text).toContain('▐▛███▜▌')
+  expect(text).toContain('▂▟█▙▂')
+  expect(text).toContain('▐▛█▜▌')
+})
+
+test('seven clicks on Clawd bring Claude-chan, kept for the next session', async ($, on) => {
+  on('command.register', () => ({ value: { command: 'clawd' } }))
+  on('clock.every', () => ({ value: undefined }))
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  const stored = new Map<string, unknown>()
+  on('store.get', (_, e) => ({ value: stored.get(e.key) }))
+  on('store.set', (_, e) => (stored.set(e.key, e.value), { value: undefined }))
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: false })
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  for (let i = 0; i < TAPS; i++) {
+    await ui.pointer({ type: 'down', x: 40 - W + 2, y: 1, button: 'left' })
+    await ui.redraw()
+  }
+  const lower = await ui.findAll({ type: 'Text', in: 'clawd' })
+  expect(lower.some(t => (CHAN_PAL as readonly string[]).includes(String(t.props.color)))).toBe(true)
+  expect(stored.get('isChan')).toBe(true)
+  await ui.unmount()
+  // Fewer rows: her small size; too few for that, Clawd stands in.
+  const small = await $.ui.mount({ ...BAND, surface: 'terminal', props: { ...BAND.props, maxRows: CHAN_ROWS - 1 } })
+  expect(((await small.drawn()) as { props: { height: number } }).props.height).toBe(SMALL.rows)
+  await small.unmount()
+  const short = await $.ui.mount({ ...BAND, surface: 'terminal', props: { ...BAND.props, maxRows: SMALL.rows - 1 } })
+  const clawd = await short.findAll({ type: 'Text', in: 'clawd' })
+  expect(clawd.some(t => t.props.color === 'claude') && !clawd.some(t => t.props.backgroundColor)).toBe(true)
+  await short.unmount()
+})
+
+// A scene in which Claude-chan plays `name`, and the activity that goes with it.
+const sceneFor = (name: ActionName): [ReturnType<typeof start>, Activity | null] => {
+  if (name in EVENTS) return [react(start(), name as EventKind), null]
+  if (name === 'echo') return [typed(start(), 'k'), null]
+  if (name === 'sleep') return [{ ...start(), idle: 6000 }, null]
+  if (name === 'idle') return [start(), null]
+  return [start(), (name === 'walk' ? 'think' : name) as Activity]
+}
+
+test('Claude-chan acts out every action in a look of her own, inside her band', () => {
+  const idle = JSON.stringify(pixels({ ...start(), t: 5 }, null))
+  for (const name of Object.keys(actions) as ActionName[]) {
+    const [s, activity] = sceneFor(name)
+    expect(actionFor(s, activity)).toBe(name)
+    const looks = new Set<string>()
+    for (let t = 0; t < 10; t++) {
+      const at = { ...s, t: s.t + t }
+      looks.add(JSON.stringify(pixels(at, activity)))
+      for (const size of CHAN_SIZES) {
+        for (const columns of [10, 30, 80]) {
+          const rows = chanFrame(at, activity, columns, [], size)
+          expect(rows.length).toBe(size.rows)
+          for (const row of glyphs(rows)) expect([...row].length <= columns).toBe(true)
+        }
+      }
+    }
+    if (name !== 'idle' && name !== 'echo' && name !== 'shell') expect(looks.has(idle) && looks.size === 1).toBe(false)
+  }
+})
+
+test('her laptop shows a prompt for a command and your last key as you type', () => {
+  const screen = (rows: Row[]) => glyphs(rows)[BIG.screen[0]]!
+  expect(screen(chanFrame({ ...start(), x: 0, t: 0 }, 'shell', 40))).toContain('>_')
+  expect(glyphs(chanFrame({ ...start(), x: 0, t: 0 }, 'shell', 40, [], SMALL))[SMALL.screen[0]]).toContain('>_')
+  expect(screen(chanFrame({ ...typed({ ...start(), x: 0 }, 'q') }, null, 40))).toMatch(/>.q/)
+  expect(screen(chanFrame({ ...typed({ ...start(), x: 0 }, '字') }, null, 40))).toMatch(/>.~/)
+})
+
+test('idle, Claude-chan plays a fidget of her own at the end of each gap', () => {
+  expect(poseAt({ ...start(), t: 10 }, null)[0]).toBe('idle')
+  const fidgets = new Set<string>()
+  for (let gap = 0; gap < 20; gap++) fidgets.add(poseAt({ ...start(), t: gap * 80 + 70 }, null)[0])
+  expect(fidgets.has('idle')).toBe(false)
+  expect(fidgets.size > 3).toBe(true)
+})
+
+test('the switch morphs Clawd into Claude-chan through a puff of smoke, and back', () => {
+  const clawdIn = (rows: Row[]) => glyphs(rows).some(r => r.includes('▐▛███▜▌'))
+  const play = (toChan: boolean) => {
+    let s: Scene = { ...start(), x: 30, morph: { until: MORPH_TICKS, toChan } }
+    const seen: boolean[] = []
+    for (let t = 0; t < MORPH_TICKS; t++) {
+      seen.push(clawdIn(chanFrame(s, null, 60)))
+      s = step(s, null, 60, CHAN_W)
+    }
+    return { seen, s }
+  }
+  const there = play(true)
+  expect(there.seen[0]).toBe(true) // starts on Clawd
+  expect(there.seen[MORPH_TICKS - 1]).toBe(false) // ends on her
+  expect(there.s.morph).toBe(null)
+  expect(there.s.event?.kind).toBe('hello') // and she says hi
+  expect(play(false).seen).toEqual([...there.seen].reverse())
+})
+
+test('seven clicks with too few rows for her say so', async ($, on) => {
+  on('command.register', () => ({ value: { command: 'clawd' } }))
+  on('clock.every', () => ({ value: undefined }))
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('store.get', () => ({ value: undefined }))
+  on('store.set', () => ({ value: undefined }))
+  const toasts: string[] = []
+  on('ui.toast', (_, e) => (toasts.push(String((e as { text?: unknown }).text ?? JSON.stringify(e))), { value: undefined }))
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: false })
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal', props: { ...BAND.props, maxRows: SMALL.rows - 1 } })
+  for (let i = 0; i < TAPS; i++) {
+    await ui.pointer({ type: 'down', x: 40 - W + 2, y: 1, button: 'left' })
+    await ui.redraw()
+  }
+  expect(toasts.some(t => t.includes('12 free rows'))).toBe(true)
+  await ui.unmount()
+})
+
+test('/clawd chan switches to Claude-chan and back, kept for the next session', async ($, on) => {
+  on('command.register', () => ({ value: { command: 'clawd' } }))
+  on('clock.every', () => ({ value: undefined }))
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  const stored = new Map<string, unknown>()
+  on('store.get', (_, e) => ({ value: stored.get(e.key) }))
+  on('store.set', (_, e) => (stored.set(e.key, e.value), { value: undefined }))
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: false })
+  const run = (args: string) => $.command.run({
+    command: 'clawd', args, origin: { kind: 'plugin', name: 'test' }, presentation: { isFullscreen: false, columns: 80 },
+  })
+  expect(JSON.stringify(await run('chan'))).toContain('Claude-chan is here.')
+  expect(stored.get('isChan')).toBe(true)
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(((await ui.drawn()) as { props: { height: number } }).props.height).toBe(BIG.rows)
+  await ui.unmount()
+  expect(JSON.stringify(await run(' chan '))).toContain('Clawd is back.')
+  expect(stored.get('isChan')).toBe(false)
+  // Plain /clawd still hides the band.
+  expect(JSON.stringify(await run(''))).toContain('Clawd is hiding.')
+})
+
+test('Clawd stays put as the switch starts, and a reaction during it is not cut short', () => {
+  const clawdCol = (rows: Row[]) => glyphs(rows).map(r => r.indexOf('▐▛███▜▌')).find(i => i >= 0)
+  // At the right edge of a 60-column band: Clawd's column before the switch...
+  let s: Scene = { ...start(), t: 5 }
+  const before = glyphs(frame(s, null, 60)).map(r => r.indexOf('▐▛███▜▌')).find(i => i >= 0)
+  s = { ...s, morph: { until: s.t + MORPH_TICKS, toChan: true } }
+  s = step(s, null, 60, CHAN_W)
+  // ...is his column in the smoke after a tick.
+  expect(clawdCol(chanFrame(s, null, 60))).toBe(before)
+  // A turn ends mid-switch: its celebration outlives the switch, and plays.
+  s = react(s, 'celebrate')
+  for (let i = 0; i < MORPH_TICKS; i++) s = step(s, null, 60, CHAN_W)
+  expect(s.morph).toBe(null)
+  expect(s.event?.kind).toBe('celebrate')
 })

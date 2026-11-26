@@ -6,8 +6,8 @@ const STAR = '#ffd75f'
 // Waiting: at the end of every GAP ticks (8s) Clawd plays a fidget for 2s, picked at
 // random, then stands still and blinks. Still most of the time on purpose:
 // each change is a redraw, and idle is most of the day.
-const GAP = 80
-const LENGTH = 20
+export const GAP = 80
+export const LENGTH = 20
 
 const FIDGETS: ((t: number) => Pose)[] = [
   // hops twice
@@ -43,20 +43,23 @@ export const FIDGET_COUNT = FIDGETS.length
 
 // The fidget for the n-th gap: picked by a hash of n, but never the one just
 // played. Each depends on the last, so they are worked out in order, once.
-const pick = (n: number): number => {
+// `count` is how many there are to pick from: Claude-chan has her own.
+const pick = (n: number, count: number): number => {
   let x = Math.imul(n + 1, 0x9e3779b1)
   x = Math.imul(x ^ (x >>> 16), 0x85ebca6b)
   x = Math.imul(x ^ (x >>> 13), 0xc2b2ae35)
-  return ((x ^ (x >>> 16)) >>> 0) % FIDGETS.length
+  return ((x ^ (x >>> 16)) >>> 0) % count
 }
-const played: number[] = []
-export const fidgetAt = (n: number): number => {
-  while (played.length <= n) {
-    const i = played.length
-    const last = played[i - 1]
-    played.push(i > 0 && pick(i) === last ? (last! + 1) % FIDGETS.length : pick(i))
+const played = new Map<number, number[]>()
+export const fidgetAt = (n: number, count = FIDGETS.length): number => {
+  const list = played.get(count) ?? []
+  played.set(count, list)
+  while (list.length <= n) {
+    const i = list.length
+    const last = list[i - 1]
+    list.push(i > 0 && pick(i, count) === last ? (last! + 1) % count : pick(i, count))
   }
-  return played[n]!
+  return list[n]!
 }
 
 export const idle: Action = ({ t }) => {

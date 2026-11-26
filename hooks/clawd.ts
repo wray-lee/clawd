@@ -4,7 +4,7 @@
 import { actions, type ActionName } from './actions'
 import { HAT, fxColor } from './palette'
 import type { Run } from './view'
-import { ARMS_DOWN, BLINK, HEAD, LEGS_A, MINI_BLINK, MINI_BODY, MINI_HAT, MINI_HEAD, MINI_W, PIXEL, TINY_BODY, TINY_HAT, TINY_HEAD, TINY_W, W, type Pose } from './sprites'
+import { ARMS_DOWN, BLINK, HEAD, LEGS_A, MINI_BLINK, MINI_BODY, MINI_HAT, MINI_HEAD, MINI_W, PIXEL, TINY_BODY, TINY_HAT, TINY_HEAD, TINY_W, W, BIG_HAT, type Pose } from './sprites'
 
 export { W }
 export const ROWS = 4
@@ -36,10 +36,13 @@ export type Scene = {
   idle: number // ticks since Claude last worked
   event: { kind: EventKind; until: number } | null
   typing: { keys: number; char: string; until: number } | null
+  taps: number // quick clicks on the body in a row, for the easter egg
+  tapAt: number // the tick of the last one
+  morph: { until: number; toChan: boolean } | null // the switch to Claude-chan or back, playing
 }
 
 export type Tone = 'body' | 'fx' | 'helper' | 'none'
-export type Segment = { text: string; tone: Tone; color?: string }
+export type Segment = { text: string; tone: Tone; color?: string; bg?: string }
 
 // A running subagent, drawn as a small Clawd in its own color. depth 1 is one
 // the main loop started; a subagent's own subagents are 2 and up, and smaller.
@@ -61,7 +64,18 @@ export function lineUp(helpers: Helper[]): Helper[] {
 export type Row = Segment[]
 
 // Starts at the right edge: frame and step clamp x to the band's width.
-export const start = (): Scene => ({ t: 0, x: Number.MAX_SAFE_INTEGER, dir: -1, idle: 0, event: null, typing: null })
+export const start = (): Scene => ({ t: 0, x: Number.MAX_SAFE_INTEGER, dir: -1, idle: 0, event: null, typing: null, taps: 0, tapAt: 0, morph: null })
+
+// The easter egg: this many clicks on the body, each within TAP_GAP ticks of
+// the last, switches between Clawd and Claude-chan.
+export const TAPS = 7
+const TAP_GAP = 6
+
+// A click on the body: counts it, and says whether it completed the egg.
+export function tap(s: Scene): { scene: Scene; isEgg: boolean } {
+  const taps = s.taps && s.t - s.tapAt <= TAP_GAP ? s.taps + 1 : 1
+  return taps >= TAPS ? { scene: { ...s, taps: 0 }, isEgg: true } : { scene: { ...s, taps, tapAt: s.t }, isEgg: false }
+}
 
 export const isAsleep = (s: Scene, activity: Activity | null) => activity === null && s.idle >= SLEEP_AFTER
 
@@ -127,37 +141,56 @@ export function actionFor(s: Scene, activity: Activity | null): ActionName {
 }
 
 // One 100ms tick.
-export function step(s: Scene, activity: Activity | null, columns: number): Scene {
+export function step(s: Scene, activity: Activity | null, columns: number, w = W): Scene {
   const t = s.t + 1
-  const max = Math.max(0, columns - W)
-  const event = s.event && t < s.event.until ? s.event : null
+  const max = Math.max(0, columns - w)
+  const morph = s.morph && t < s.morph.until ? s.morph : null
+  const live = s.event && t < s.event.until ? s.event : null
+  // The switch over, whoever it brought in says hi, unless a reaction is playing.
+  const event = s.morph && !morph && !live ? { kind: 'hello' as const, until: t + EVENT_TICKS.hello } : live
   const typing = s.typing && t < s.typing.until ? s.typing : null
   let { dir } = s
-  let x = Math.min(s.x, max)
+  // While switching, Clawd and she each keep their place: no clamping to the
+  // other's width, which would make Clawd jump as the smoke starts.
+  let x = morph ? s.x : Math.min(s.x, max)
   // Only walks while thinking; at a tool it stops to work.
-  if (activity === 'think' && !event && !typing && t % 2 === 0) {
+  if (activity === 'think' && !event && !typing && !morph && t % 2 === 0) {
     if (x + dir < 0 || x + dir > max) dir = dir === 1 ? -1 : 1
     x = Math.min(max, Math.max(0, x + dir))
   }
   const isQuiet = activity === null && !event && !typing
-  return { t, x, dir, idle: isQuiet ? s.idle + 1 : 0, event, typing }
+  return { ...s, t, x, dir, idle: isQuiet ? s.idle + 1 : 0, event, typing, morph }
+}
+
+export type Put = (row: number, col: number, text: string, tone: Tone, color?: string, soft?: boolean, bg?: string) => void
+
+// A blank band to draw on: `put` draws, `rows` reads it back as runs of one
+// tone and color each, trailing blanks dropped.
+export function canvas(height: number, columns: number): { put: Put; rows: () => Row[] } {
+  const cells = Array.from({ length: height }, () => Array.from({ length: columns }, (): Segment => ({ text: ' ', tone: 'none' })))
+  // A soft put (the corner label) leaves cells already drawn alone.
+  const put: Put = (row, col, text, tone, color, soft = false, bg) =>
+    [...text].forEach((ch, i) => {
+      const c = col + i
+      if (ch === ' ' || row < 0 || row >= height || c < 0 || c >= columns) return
+      if (soft && cells[row]![c]!.tone !== 'none') return
+      cells[row]![c] = { text: ch, tone, color, bg }
+    })
+  const rows = () => cells.map(line => {
+    const row: Row = []
+    for (const { text, tone, color, bg } of line) {
+      const last = row[row.length - 1]
+      if (last && last.tone === tone && last.color === color && last.bg === bg) last.text += text
+      else row.push({ text, tone, ...(color && { color }), ...(bg && { bg }) })
+    }
+    if (row[row.length - 1]?.tone === 'none') row.pop()
+    return row
+  })
+  return { put, rows }
 }
 
 export function frame(s: Scene, activity: Activity | null, columns: number, helpers: Helper[] = []): Row[] {
-  const chars = Array.from({ length: ROWS }, () => Array<string>(columns).fill(' '))
-  const tones = Array.from({ length: ROWS }, () => Array<Tone>(columns).fill('none'))
-  const colors = Array.from({ length: ROWS }, () => Array<string | undefined>(columns).fill(undefined))
-  // A soft put (the corner label) leaves cells already drawn alone.
-  const put = (row: number, col: number, text: string, tone: Tone, color?: string, soft = false) =>
-    [...text].forEach((ch, i) => {
-      const c = col + i
-      if (ch === ' ' || row < 0 || row >= ROWS || c < 0 || c >= columns) return
-      if (soft && tones[row]![c] !== 'none') return
-      chars[row]![c] = ch
-      tones[row]![c] = tone
-      colors[row]![c] = color
-    })
-
+  const { put, rows } = canvas(ROWS, columns)
   const line = lineUp(helpers)
   let x0 = Math.min(s.x, Math.max(0, columns - W))
   // With helpers hidden, Clawd stands clear of their label under the "[-]".
@@ -173,20 +206,7 @@ export function frame(s: Scene, activity: Activity | null, columns: number, help
   put(top + 2, x, pose.legs ?? LEGS_A, 'body')
   for (const [row, col, text, color] of pose.fx ?? []) [...text].forEach((ch, i) => put(row, x + col + i, ch, 'fx', color ?? fxColor(ch)))
   drawHelpers(s.t, x0, columns, line, put)
-
-  // Runs of one tone become one Text each, trailing blanks dropped.
-  return chars.map((line, r) => {
-    const row: Row = []
-    line.forEach((ch, c) => {
-      const tone = tones[r]![c]!
-      const color = colors[r]![c]
-      const last = row[row.length - 1]
-      if (last && last.tone === tone && last.color === color) last.text += ch
-      else row.push(color ? { text: ch, tone, color } : { text: ch, tone })
-    })
-    if (row[row.length - 1]?.tone === 'none') row.pop()
-    return row
-  })
+  return rows()
 }
 
 // Helpers line up beside Clawd, on the side with more room, each hopping on
@@ -197,13 +217,16 @@ export function frame(s: Scene, activity: Activity | null, columns: number, help
 const MAX_SHOWN = 8
 export const FX_REACH = 5
 
-export function drawHelpers(t: number, x0: number, columns: number, line: Helper[],
-  put: (row: number, col: number, text: string, tone: Tone, color?: string, soft?: boolean) => void): number {
-  const toLeft = x0 + W / 2 >= columns / 2
+// `big` (beside Claude-chan) makes each helper one size bigger: a subagent is
+// a whole Clawd, its own subagents the sizes a subagent's were.
+export function drawHelpers(t: number, x0: number, columns: number, line: Helper[], put: Put, w = W, big = false): number {
+  const toLeft = x0 + w / 2 >= columns / 2
   // Clawd's effects (a hammer, z's, confetti) reach FX_REACH columns past its
   // body; helpers start beyond them, so none is ever covered.
-  const start = toLeft ? x0 - 1 - FX_REACH : x0 + W + 1 + FX_REACH
-  const widthOf = (h: Helper) => (h.depth > 2 ? 1 : h.depth > 1 ? TINY_W : MINI_W)
+  const start = toLeft ? x0 - 1 - FX_REACH : x0 + w + 1 + FX_REACH
+  // 0 a whole Clawd, 1 mini, 2 tiny, 3 a pixel.
+  const sizeOf = (h: Helper) => Math.min(3, h.depth - (big ? 1 : 0))
+  const widthOf = (h: Helper) => [W, MINI_W, TINY_W, 1][sizeOf(h)]!
   // How many fit in order, from Clawd outward, short of column `end` on the right.
   const fit = (end: number) => {
     let cursor = start
@@ -212,7 +235,7 @@ export function drawHelpers(t: number, x0: number, columns: number, line: Helper
     for (const h of line) {
       const w = widthOf(h)
       const col = toLeft ? cursor - w : cursor
-      if (h.depth <= 2 && ++counted > MAX_SHOWN) break
+      if (sizeOf(h) < 3 && ++counted > MAX_SHOWN) break
       if (col < 0 || col + w > end) break
       cursor = toLeft ? col - 1 : col + w + 1
       n++
@@ -248,8 +271,15 @@ export function drawHelpers(t: number, x0: number, columns: number, line: Helper
     // Each hops and blinks on its own beat; two rows, so a hop lifts it one.
     const top = (t + i * 4) % 12 < 2 ? 1 : 2
     const blink = (t + i * 7) % 53 < 2
-    if (h.depth > 2) put(top + 1, col, PIXEL, 'helper', h.color)
-    else if (h.depth > 1) {
+    const size = sizeOf(h)
+    if (size === 3) put(top + 1, col, PIXEL, 'helper', h.color)
+    else if (size === 0) {
+      // Three rows: standing on the bottom row, a hop lifts it one.
+      if (h.isWorkflow) put(top - 2, col, BIG_HAT, 'helper', HAT)
+      put(top - 1, col, blink ? BLINK : HEAD, 'helper', h.color)
+      put(top, col, ARMS_DOWN, 'helper', h.color)
+      put(top + 1, col, LEGS_A, 'helper', h.color)
+    } else if (size === 2) {
       if (h.isWorkflow) put(top - 1, col, TINY_HAT, 'helper', HAT)
       put(top, col, TINY_HEAD, 'helper', h.color)
       put(top + 1, col, TINY_BODY, 'helper', h.color)
@@ -278,8 +308,9 @@ export function toneAt(rows: Row[], x: number, y: number): Tone {
 }
 
 // A row as ./view.ts draws it: Clawd in the theme's `claude` orange (the
-// welcome screen's), helpers and effects in their own colors, the rest dim.
+// welcome screen's), Claude-chan's pixels, helpers and effects in their own
+// colors, the rest dim.
 export function runsOf(row: Row): Run[] {
-  return row.map(({ text, tone, color }) =>
-    tone === 'none' ? { text } : { text, color: tone === 'body' ? 'claude' : (color ?? 'subtle') })
+  return row.map(({ text, tone, color, bg }) =>
+    tone === 'none' ? { text } : { text, color: color ?? (tone === 'body' ? 'claude' : 'subtle'), ...(bg && { bg }) })
 }

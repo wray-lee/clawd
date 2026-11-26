@@ -58,6 +58,8 @@ export const TINY_BODY = '▜▀▛'
 // A workflow agent's top hat, a row above its head, one per size.
 export const MINI_HAT = '▂▟█▙▂'
 export const TINY_HAT = '▗█▖'
+// A whole-Clawd helper's, beside Claude-chan.
+export const BIG_HAT = '  ▂▟█▙▂  '
 
 // Three levels down and deeper: one pixel, 1 column.
 export const PIXEL = '▖'
