@@ -7,7 +7,7 @@ import type { ActionName } from './actions'
 import { GAP, LENGTH, fidgetAt } from './actions/idle'
 import { actionFor, canvas, drawHelpers, lineUp, type Activity, type Helper, type Put, type Row, type Scene } from './clawd'
 import { CHAN_KEY, CHAN_MORPH, CHAN_PAL, CHAN_SCREEN_COLORS, CHAN_SIZES } from './chan-sprites'
-import { ARMS_DOWN, HEAD, LEGS_A, W } from './sprites'
+import { ARMS_DOWN, HEAD, LEGS_A, W, keyGlyph } from './sprites'
 
 export type ChanSize = (typeof CHAN_SIZES)[number]
 type PoseName = keyof ChanSize['poses']
@@ -79,13 +79,12 @@ export function pixels(s: Scene, activity: Activity | null, size: ChanSize = CHA
 }
 
 // What her laptop's screen says: a prompt with a blinking cursor, or the
-// last key the person typed (ASCII only; anything wider shows as "~").
+// last key the person typed (see keyGlyph).
 function screen(s: Scene, activity: Activity | null): string | null {
   const action = actionFor(s, activity)
   if (action === 'shell') return s.t % 6 < 3 ? '>_' : '> '
   if (action !== 'echo') return null
-  const char = s.typing?.char ?? ''
-  return '> ' + (/^[\x21-\x7e]$/.test(char) ? char : '~')
+  return '> ' + keyGlyph(s.typing?.char ?? '')
 }
 
 export function chanFrame(s: Scene, activity: Activity | null, columns: number, helpers: Helper[] = [], size: ChanSize = CHAN_SIZES[0]): Row[] {

@@ -4,7 +4,7 @@
 import { actions, type ActionName } from './actions'
 import { HAT, fxColor } from './palette'
 import type { Run } from './view'
-import { ARMS_DOWN, BLINK, HEAD, LEGS_A, MINI_BLINK, MINI_BODY, MINI_HAT, MINI_HEAD, MINI_W, PIXEL, TINY_BODY, TINY_HAT, TINY_HEAD, TINY_W, W, BIG_HAT, type Pose } from './sprites'
+import { ARMS_DOWN, BLINK, clusters, isWide, HEAD, LEGS_A, MINI_BLINK, MINI_BODY, MINI_HAT, MINI_HEAD, MINI_W, PIXEL, TINY_BODY, TINY_HAT, TINY_HEAD, TINY_W, W, BIG_HAT, type Pose } from './sprites'
 
 export { W }
 export const ROWS = 4
@@ -97,7 +97,7 @@ export function poke(s: Scene, activity: Activity | null): Scene {
 export function typed(s: Scene, text: string): Scene {
   const woken = isAsleep(s, null) ? react(s, 'wake') : s
   const keys = (s.typing?.keys ?? 0) + 1
-  return { ...woken, idle: 0, typing: { keys, char: [...text].pop() ?? '', until: s.t + TYPING_TICKS } }
+  return { ...woken, idle: 0, typing: { keys, char: clusters(text).pop() ?? '', until: s.t + TYPING_TICKS } }
 }
 
 export function activityOf(tool: string): Activity {
@@ -168,14 +168,27 @@ export type Put = (row: number, col: number, text: string, tone: Tone, color?: s
 // tone and color each, trailing blanks dropped.
 export function canvas(height: number, columns: number): { put: Put; rows: () => Row[] } {
   const cells = Array.from({ length: height }, () => Array.from({ length: columns }, (): Segment => ({ text: ' ', tone: 'none' })))
+  const blank = (): Segment => ({ text: ' ', tone: 'none' })
+  // A wide character fills its cell and the next, which holds '' so the row
+  // keeps its width; writing over either half clears the other.
+  const set = (line: Segment[], c: number, cell: Segment) => {
+    if (line[c]!.text === '') line[c - 1] = blank()
+    if (line[c + 1]?.text === '') line[c + 1] = blank()
+    line[c] = cell
+  }
   // A soft put (the corner label) leaves cells already drawn alone.
-  const put: Put = (row, col, text, tone, color, soft = false, bg) =>
-    [...text].forEach((ch, i) => {
-      const c = col + i
-      if (ch === ' ' || row < 0 || row >= height || c < 0 || c >= columns) return
-      if (soft && cells[row]![c]!.tone !== 'none') return
-      cells[row]![c] = { text: ch, tone, color, bg }
-    })
+  const put: Put = (row, col, text, tone, color, soft = false, bg) => {
+    const line = cells[row]
+    let c = col
+    for (const ch of clusters(text)) {
+      const w = isWide(ch) ? 2 : 1
+      if (ch !== ' ' && line && c >= 0 && c + w <= columns && !(soft && line.slice(c, c + w).some(x => x.tone !== 'none'))) {
+        set(line, c, { text: ch, tone, color, bg })
+        if (w === 2) set(line, c + 1, { text: '', tone, color, bg })
+      }
+      c += w
+    }
+  }
   const rows = () => cells.map(line => {
     const row: Row = []
     for (const { text, tone, color, bg } of line) {
@@ -204,7 +217,13 @@ export function frame(s: Scene, activity: Activity | null, columns: number, help
   put(top, x, pose.head ?? (blink ? BLINK : HEAD), 'body')
   put(top + 1, x, pose.arms ?? ARMS_DOWN, 'body')
   put(top + 2, x, pose.legs ?? LEGS_A, 'body')
-  for (const [row, col, text, color] of pose.fx ?? []) [...text].forEach((ch, i) => put(row, x + col + i, ch, 'fx', color ?? fxColor(ch)))
+  for (const [row, col, text, color] of pose.fx ?? []) {
+    let c = x + col
+    for (const ch of clusters(text)) {
+      put(row, c, ch, 'fx', color ?? fxColor(ch))
+      c += isWide(ch) ? 2 : 1
+    }
+  }
   drawHelpers(s.t, x0, columns, line, put)
   return rows()
 }
@@ -301,7 +320,7 @@ export function drawHelpers(t: number, x0: number, columns: number, line: Helper
 export function toneAt(rows: Row[], x: number, y: number): Tone {
   let c = 0
   for (const seg of rows[y] ?? []) {
-    c += [...seg.text].length
+    for (const ch of clusters(seg.text)) c += isWide(ch) ? 2 : 1
     if (x < c) return seg.tone
   }
   return 'none'

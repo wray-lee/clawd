@@ -37,7 +37,9 @@ English | [简体中文](README.zh-CN.md) | [日本語](README.ja.md)
   fails, fidgets while it waits, and naps after ten quiet minutes.
 - **Colorful.** Clawd keeps the welcome screen's own theme orange. Helpers
   come in 12 colors, and confetti, sparkles, `z`'s, signals and smoke each have their
-  own. Every glyph is one column wide, so CJK terminals stay aligned.
+  own. Every glyph is one column wide, so CJK terminals stay aligned, and
+  the key you type takes the columns it needs: a letter, a Chinese character
+  or an emoji.
 
 ## Install
 

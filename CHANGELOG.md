@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-11-26
+
+### Changed
+
+- The key Clawd or Claude-chan holds up as you type can be any character:
+  Chinese, Japanese, Korean, accented letters and emoji (skin tones, ZWJ
+  sequences and flags included), each taking the columns it needs. Only a
+  space, a control or a lone accent still shows as `~`.
+
 ## [1.0.0] - 2026-11-26
 
 ### Added

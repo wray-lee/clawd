@@ -5,7 +5,8 @@ import { actions, type ActionName } from '../hooks/actions'
 import { FIDGET_COUNT, fidgetAt } from '../hooks/actions/idle'
 import { MORPH_TICKS, chanFrame, pixels, poseAt, sizeFor } from '../hooks/chan'
 import { CHAN_KEY, CHAN_PAL, CHAN_SIZES } from '../hooks/chan-sprites'
-import { HOLD, TAPS, tap, actionFor, activityNow, activityOf, drawHelpers, frame, lineUp, poke, react, start, step, typed, W, type Activity, type EventKind, type Helper, type Row, type Scene } from '../hooks/clawd'
+import { HOLD, TAPS, canvas, tap, toneAt, actionFor, activityNow, activityOf, drawHelpers, frame, lineUp, poke, react, start, step, typed, W, type Activity, type EventKind, type Helper, type Row, type Scene } from '../hooks/clawd'
+import { clusters, isWide } from '../hooks/sprites'
 import { HAT, PALETTE, pick } from '../hooks/palette'
 
 const BAND = {
@@ -126,7 +127,9 @@ test('typing makes Clawd type along, holding up the last key', async () => {
   expect(s.typing?.keys).toBe(2)
   expect(glyphs(frame(s, null, 40))[0]).toContain('i')
   // Wide characters show as "~", never misaligning the band.
-  expect(glyphs(frame(typed(start(), '你'), null, 40))[0]).toContain('~')
+  expect(glyphs(frame(typed(start(), '你'), null, 40))[0]).toContain('你')
+  expect(glyphs(frame(typed(start(), 'café'), null, 40))[0]).toContain('é') // a letter with its accent
+  expect(glyphs(frame(typed(start(), 'a '), null, 40))[0]).toContain('~') // a space shows as ~
   // 1.5s after the last key it goes back to idling.
   expect(actionFor(play(null, 15, 40, s), null)).toBe('idle')
   // Typing wakes a sleeping Clawd.
@@ -420,7 +423,8 @@ test('her laptop shows a prompt for a command and your last key as you type', ()
   expect(screen(chanFrame({ ...start(), x: 0, t: 0 }, 'shell', 40))).toContain('>_')
   expect(glyphs(chanFrame({ ...start(), x: 0, t: 0 }, 'shell', 40, [], SMALL))[SMALL.screen[0]]).toContain('>_')
   expect(screen(chanFrame({ ...typed({ ...start(), x: 0 }, 'q') }, null, 40))).toMatch(/>.q/)
-  expect(screen(chanFrame({ ...typed({ ...start(), x: 0 }, '字') }, null, 40))).toMatch(/>.~/)
+  expect(screen(chanFrame({ ...typed({ ...start(), x: 0 }, '字') }, null, 40))).toMatch(/>.字/)
+  expect(screen(chanFrame({ ...typed({ ...start(), x: 0 }, 'ok 👍🏽') }, null, 40))).toContain('👍🏽')
 })
 
 test('idle, Claude-chan plays a fidget of her own at the end of each gap', () => {
@@ -504,4 +508,20 @@ test('Clawd stays put as the switch starts, and a reaction during it is not cut 
   for (let i = 0; i < MORPH_TICKS; i++) s = step(s, null, 60, CHAN_W)
   expect(s.morph).toBe(null)
   expect(s.event?.kind).toBe('celebrate')
+})
+
+test('a wide character takes two columns, and writing over half of it clears it', () => {
+  expect(clusters('a字👨‍👩‍👧🇯🇵é')).toEqual(['a', '字', '👨‍👩‍👧', '🇯🇵', 'é'])
+  expect(['字', '👨‍👩‍👧', '🇯🇵', '❤️', '！'].every(isWide)).toBe(true)
+  expect(['a', 'é', 'я', '→'].some(isWide)).toBe(false)
+  const { put, rows } = canvas(1, 6)
+  put(0, 1, '字a', 'fx')
+  expect(glyphs(rows())[0]).toBe(' 字a')
+  expect(toneAt(rows(), 2, 0)).toBe('fx') // its second column is still the character
+  expect(toneAt(rows(), 3, 0)).toBe('fx')
+  expect(toneAt(rows(), 4, 0)).toBe('none')
+  put(0, 2, 'b', 'body') // over its right half
+  expect(glyphs(rows())[0]).toBe('  ba')
+  put(0, 5, '字', 'fx') // no room for both columns: not drawn
+  expect(glyphs(rows())[0]).toBe('  ba')
 })
