@@ -54,7 +54,8 @@ every session. From a shell:
 claude plugin install clawd --marketplace wray-lee/clawd
 ```
 
-Restart Claude Code to load it. `/clawd` hides or shows the band.
+Restart Claude Code to load it. `/clawd` hides or shows the band, and
+`/clawd chan` switches to Claude-chan and back.
 
 ## What Clawd does
 
@@ -139,6 +140,20 @@ the prompt: the engine hides the band then.
 > own, so pressing on it never starts a text selection.
 
 <img src="docs/assets/celebrate.png" alt="Clawd hopping with happy eyes after a finished turn" width="100%">
+
+### An easter egg
+
+Click Clawd seven times in quick succession (or run `/clawd chan`) and
+Claude-chan takes its place in a puff of smoke: a chibi girl in pixel art who
+acts out the same work in her own poses. Helpers beside her are whole Clawds,
+and a workflow's still wear the hat. Do it again to bring Clawd back; the
+choice is kept across sessions. She is 16 rows tall, or 12 where the band has
+less room, each size drawn by hand; with fewer than 12 rows free, Clawd stands
+in and says so.
+
+<img src="docs/assets/claude-chan-small.png" alt="Claude-chan's poses at her 12-row size" width="100%">
+
+<img src="docs/assets/claude-chan.png" alt="One frame of each of Claude-chan's poses: her work, moods, reactions to a click and idle fidgets" width="100%">
 
 ## Requirements
 

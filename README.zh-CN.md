@@ -39,7 +39,7 @@
 claude plugin install clawd --marketplace wray-lee/clawd
 ```
 
-装好后重启 Claude Code。`/clawd` 隐藏或显示横栏。
+装好后重启 Claude Code。`/clawd` 隐藏或显示横栏，`/clawd chan` 在 Clawd 和 Claude 娘之间切换。
 
 ## Clawd 会做什么
 
@@ -106,6 +106,14 @@ claude plugin install clawd --marketplace wray-lee/clawd
 > 点击需要全屏布局（终端才会上报鼠标）。在 tmux 里请设置 `CLAUDE_CODE_NO_FLICKER=1`。横栏画在自己的独立区域里，按下去不会开始选中文字。
 
 <img src="docs/assets/celebrate.png" alt="一轮回答完成，Clawd 笑眼蹦跳庆祝" width="100%">
+
+### 彩蛋
+
+快速连点 Clawd 七下（或运行 `/clawd chan`），Clawd 会在一团烟雾里变成 Claude 娘：一个 Q 版像素小姑娘，用她自己的姿势演同样的活。她身边的小帮手是完整大小的 Clawd，workflow 的照样戴帽子。再来一次就换回 Clawd，选择会跨会话保留。她有 16 行和 12 行两种尺寸，都是手绘的，空间不够大时自动用小的；空余不到 12 行时由 Clawd 代班，并弹出提示。
+
+<img src="docs/assets/claude-chan-small.png" alt="Claude 娘 12 行尺寸的各个姿势" width="100%">
+
+<img src="docs/assets/claude-chan.png" alt="Claude 娘每个姿势各一帧：干活、情绪、点击反应和闲时小动作" width="100%">
 
 ## 要求
 

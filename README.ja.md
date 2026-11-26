@@ -39,7 +39,7 @@ Claude Code のターミナルセッションのプロンプトで：
 claude plugin install clawd --marketplace wray-lee/clawd
 ```
 
-インストール後、Claude Code を再起動してください。`/clawd` でバンドの表示と非表示を切り替えます。
+インストール後、Claude Code を再起動してください。`/clawd` でバンドの表示と非表示を、`/clawd chan` で Claude ちゃんとの入れ替えを切り替えます。
 
 ## Clawd のしぐさ
 
@@ -106,6 +106,14 @@ claude plugin install clawd --marketplace wray-lee/clawd
 > クリックには、端末がマウスを報告するフルスクリーンレイアウトが必要です。tmux では `CLAUDE_CODE_NO_FLICKER=1` を設定してください。バンドは専用の領域に描かれるので、押しても文字の選択は始まりません。
 
 <img src="docs/assets/celebrate.png" alt="ターンが終わり、にっこり目で跳ねてお祝いする Clawd" width="100%">
+
+### イースターエッグ
+
+Clawd を素早く 7 回クリックする（または `/clawd chan` を実行する）と、ぽんっと煙が立って Claude ちゃんに交代します。ちびキャラのピクセルアートで、同じ作業を自分のポーズで演じます。そばのヘルパーはフルサイズの Clawd で、workflow のものは今まで通り帽子をかぶります。もう一度で Clawd に戻り、選択はセッションをまたいで保たれます。サイズは 16 行と 12 行の 2 種類で、どちらも手描きです。余裕がなければ小さいほうになり、空きが 12 行未満のときは Clawd が代わりに出てトーストで知らせます。
+
+<img src="docs/assets/claude-chan-small.png" alt="12 行サイズの Claude ちゃんの各ポーズ" width="100%">
+
+<img src="docs/assets/claude-chan.png" alt="Claude ちゃんの全ポーズを 1 フレームずつ：作業、気分、クリックへの反応、待機中のしぐさ" width="100%">
 
 ## 必要なもの
 

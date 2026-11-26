@@ -4,6 +4,27 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [1.0.0] - 2026-11-26
+
+### Added
+
+- An easter egg: seven quick clicks on Clawd, or `/clawd chan`, turn it in a
+  puff of smoke into Claude-chan, a chibi pixel-art girl with her own pose for
+  every action, her own idle fidgets, and a laptop that shows the shell prompt
+  or the key you just typed. Do it again to bring Clawd back; the choice is
+  kept across sessions.
+- She is drawn by hand in two sizes, 16 rows and 12, by `scripts/chan.py`;
+  the band shows the bigger one that fits, and with fewer than 12 rows free
+  Clawd stands in and says so.
+- Beside her, a subagent's helper is a whole Clawd, a subagent's own one a
+  mini, and a workflow's still wears the hat.
+
+### Changed
+
+- Her colors are xterm-256 colors, set so that a 256-color terminal (tmux)
+  shows exactly them.
+- `scripts/paint.ts` draws a cell's own colors and background, for her.
+
 ## [0.6.0] - 2026-11-12
 
 ### Added
